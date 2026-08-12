@@ -1,0 +1,33 @@
+# fish-classifier — 개발/학습 전체 의존성
+# Python 3.11 또는 3.12 권장 (3.14는 torch/albumentations 휠 미비)
+#
+# GPU 학습 시 torch 는 아래처럼 CUDA 빌드로 따로 설치할 것:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+# (PyPI 기본 휠은 Windows에서 CPU 전용)
+
+# --- 학습 ---
+torch>=2.4
+torchvision>=0.19
+timm>=1.0.9
+albumentations>=2.0        # 2.x API 기준으로 dataset.py 작성됨
+opencv-python>=4.10
+pillow>=10.3
+numpy>=1.26
+
+# --- 평가/시각화 ---
+scikit-learn>=1.5
+matplotlib>=3.9
+pandas>=2.2
+tqdm>=4.66
+
+# --- 서빙 (배포 이미지는 server/requirements.txt 사용) ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+onnx>=1.16
+onnxruntime>=1.19
+
+# --- Phase 2 데이터 수집 ---
+requests>=2.32
+icrawler>=0.6.9
+imagehash>=4.3

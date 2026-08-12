@@ -1,0 +1,8 @@
+# 배포용 슬림 의존성 — Docker 이미지에는 torch/timm 을 넣지 않는다.
+# 추론은 ONNX Runtime 으로만 수행하므로 이미지 크기가 ~2GB → ~300MB 로 줄어든다.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+onnxruntime>=1.19
+pillow>=10.3
+numpy>=1.26

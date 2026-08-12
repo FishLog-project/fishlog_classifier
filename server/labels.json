@@ -1,0 +1,161 @@
+{
+  "num_classes": 25,
+  "classes": [
+    "감성돔",
+    "농어",
+    "돌돔",
+    "벵에돔",
+    "우럭",
+    "참돔",
+    "광어",
+    "볼락",
+    "갈치",
+    "고등어",
+    "삼치",
+    "방어",
+    "전갱이",
+    "숭어",
+    "붕어",
+    "잉어",
+    "쏘가리",
+    "배스",
+    "블루길",
+    "가물치",
+    "메기",
+    "송어",
+    "피라미",
+    "동자개",
+    "기타"
+  ],
+  "other_class": "기타",
+  "other_index": 24,
+  "confidence_threshold": 0.45,
+  "top_k": 3,
+  "species": {
+    "감성돔": {
+      "scientific": "Acanthopagrus schlegelii",
+      "habitat": "sea",
+      "difficulty": "hard"
+    },
+    "농어": {
+      "scientific": "Lateolabrax japonicus",
+      "habitat": "sea",
+      "difficulty": "medium"
+    },
+    "돌돔": {
+      "scientific": "Oplegnathus fasciatus",
+      "habitat": "sea",
+      "difficulty": "easy"
+    },
+    "벵에돔": {
+      "scientific": "Girella punctata",
+      "habitat": "sea",
+      "difficulty": "medium"
+    },
+    "우럭": {
+      "scientific": "Sebastes schlegelii",
+      "habitat": "sea",
+      "difficulty": "hard"
+    },
+    "참돔": {
+      "scientific": "Pagrus major",
+      "habitat": "sea",
+      "difficulty": "easy"
+    },
+    "광어": {
+      "scientific": "Paralichthys olivaceus",
+      "habitat": "sea",
+      "difficulty": "easy"
+    },
+    "볼락": {
+      "scientific": "Sebastes inermis",
+      "habitat": "sea",
+      "difficulty": "hard"
+    },
+    "갈치": {
+      "scientific": "Trichiurus lepturus",
+      "habitat": "sea",
+      "difficulty": "easy"
+    },
+    "고등어": {
+      "scientific": "Scomber japonicus",
+      "habitat": "sea",
+      "difficulty": "medium"
+    },
+    "삼치": {
+      "scientific": "Scomberomorus niphonius",
+      "habitat": "sea",
+      "difficulty": "medium"
+    },
+    "방어": {
+      "scientific": "Seriola quinqueradiata",
+      "habitat": "sea",
+      "difficulty": "easy"
+    },
+    "전갱이": {
+      "scientific": "Trachurus japonicus",
+      "habitat": "sea",
+      "difficulty": "medium"
+    },
+    "숭어": {
+      "scientific": "Mugil cephalus",
+      "habitat": "sea",
+      "difficulty": "medium"
+    },
+    "붕어": {
+      "scientific": "Carassius carassius",
+      "habitat": "fresh",
+      "difficulty": "hard"
+    },
+    "잉어": {
+      "scientific": "Cyprinus carpio",
+      "habitat": "fresh",
+      "difficulty": "hard"
+    },
+    "쏘가리": {
+      "scientific": "Siniperca scherzeri",
+      "habitat": "fresh",
+      "difficulty": "easy"
+    },
+    "배스": {
+      "scientific": "Micropterus salmoides",
+      "habitat": "fresh",
+      "difficulty": "easy"
+    },
+    "블루길": {
+      "scientific": "Lepomis macrochirus",
+      "habitat": "fresh",
+      "difficulty": "easy"
+    },
+    "가물치": {
+      "scientific": "Channa argus",
+      "habitat": "fresh",
+      "difficulty": "easy"
+    },
+    "메기": {
+      "scientific": "Silurus asotus",
+      "habitat": "fresh",
+      "difficulty": "easy"
+    },
+    "송어": {
+      "scientific": "Oncorhynchus mykiss",
+      "habitat": "fresh",
+      "difficulty": "easy"
+    },
+    "피라미": {
+      "scientific": "Zacco platypus",
+      "habitat": "fresh",
+      "difficulty": "easy"
+    },
+    "동자개": {
+      "scientific": "Tachysurus fulvidraco",
+      "habitat": "fresh",
+      "difficulty": "easy"
+    },
+    "기타": {
+      "scientific": "",
+      "habitat": "other",
+      "difficulty": "hard"
+    }
+  }
+}
