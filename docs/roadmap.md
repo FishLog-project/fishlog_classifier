@@ -2,48 +2,64 @@
 
 > 이 파일이 **진행 상황의 단일 기준**이다. 작업을 끝낼 때마다 체크박스와 "현재 위치"를 갱신한다.
 
-## 현재 위치 (2026-08-12 기준)
+## 현재 위치 (2026-08-14 기준)
 
-**Phase 1 완료 → Phase 2(데이터 수집) 착수 대기.**
+**Phase 2 완료 → Phase 3(학습) 착수.** 데이터 7,016장 분할 완료 (train 4,916 / val 1,051 / test 1,049).
 
-- 있는 것: `src/config.py`(25클래스 확정), `src/dataset.py`, `src/train.py`, 폴더 구조, `server/labels.json`, `docs/`
-- 없는 것: `scripts/*`(수집 4종), `src/evaluate.py`, `src/export_onnx.py`, `server/main.py`·`inference.py`, `Dockerfile`
+- 있는 것: `src/config.py`(25클래스), `src/dataset.py`, `src/train.py`,
+  `scripts/*` 8종(수집 3 + 정제 3 + 검수 보조 2), **분할된 데이터 7,016장**, `server/labels.json`
+- 없는 것: `src/evaluate.py`, `src/export_onnx.py`, `server/main.py`·`inference.py`, `Dockerfile`
 - 확정: 25클래스(어종 24 + `기타`) / MVP 종당 250장 / 학습은 Colab T4 ([decisions.md](decisions.md) A-10~12)
 - 미결정: 공모전 마감일, 배포처, 24종 밖 어종 앱 UX ([decisions.md](decisions.md) B섹션)
 
-### ▶ 다음에 할 일
+### 데이터 현황 (2026-08-14)
 
-1. `scripts/crawl_inat.py` 작성 — `config.SPECIES`의 학명으로 iNaturalist 수집 + `data/licenses.csv` 기록
-   (`기타`는 `scientific == ""` 이므로 건너뛴다)
-2. `scripts/crawl_search.py` — 한글 키워드 크롤링 (`기타` 클래스 포함)
-3. `scripts/dedup.py` → `scripts/split.py`
-4. 병행: Python 3.11 venv + `pip install -r requirements.txt` → `python -m src.train --smoke`
+| | 장수 |
+|---|---|
+| train / val / test | 4,916 / 1,051 / 1,049 (합 **7,016**) |
+| 소스 | iNaturalist 약 4,900 + 검색(DDG·Bing) 약 2,100 |
+| 격리분 | 1,911장 (자동 필터 1,221 + 사람 검수 690) |
 
-상세 → [data-pipeline.md](data-pipeline.md)
+**목표 미달 3종**: 볼락 146, 삼치 151, 전갱이 189.
+iNat 관측 수 자체가 적고(볼락 39건), 검색 결과는 어시장·조리 사진이 대부분이라 검수에서 60~80% 탈락했다.
+→ A-11 방침대로 **이대로 1차 학습**하고, 평가에서 이 3종의 recall을 보고 보강 여부를 정한다.
+
+### ▶ 다음에 할 일 (Phase 3)
+
+1. `data/splits` 를 zip으로 묶어 Colab에 올린다 ([setup.md](setup.md) "Colab에서 학습하기")
+2. `python -m src.train` (T4, 30 epoch) → `models/best.pt`
+3. `src/evaluate.py` 작성 → test셋 Top-1/Top-3 + 혼동행렬
+4. 모델 예측으로 **라벨 오류 후보** 추출 → 검수 2차 (폴더 라벨 ≠ 고확신 예측)
+
+상세 → [training.md](training.md) / [data-pipeline.md](data-pipeline.md)
 
 ---
 
 ## Phase 체크리스트
 
-### Phase 1 — 환경·레포·config ✅
+### Phase 1 — 환경·레포·config ✅ (완료)
 - [x] 폴더 구조 생성 (`data/{raw,clean,splits}/<24종>`, `src/`, `server/`, `models/`, `reports/`, `scripts/`)
 - [x] `requirements.txt` / `server/requirements.txt`(슬림 배포용)
 - [x] `src/config.py` — 24종 고정 순서 + 학명·키워드·난이도·목표량
 - [x] `src/dataset.py` — Dataset/증강/불균형 샘플러/점검 CLI
 - [x] `src/train.py` — 2단계 파인튜닝 루프
 - [x] `README.md`, `.gitignore`, `CLAUDE.md`, `docs/`
-- [ ] **Python 3.11 venv + 의존성 설치** ← 다음 액션
-- [ ] `python -m src.train --smoke` 로 파이프라인 검증 (더미 이미지 몇 장으로)
+- [x] **Python 3.11 venv + 의존성 설치** (3.11.9 / torch 2.13.0+cpu / timm 1.0.28 / albumentations 2.0.8)
+      `stringzilla==5.1.1` 핀 필요 — 5.1.2는 Windows cp311 휠이 없어 MSVC 빌드를 요구한다
+- [x] `python -m src.train --smoke` 로 파이프라인 검증 통과 (2단계 파인튜닝·체크포인트·한글 경로 OK)
 
-### Phase 2 — 데이터 수집·정제·분할 ⬜ (병목, MVP 1~2일)
-- [ ] `scripts/crawl_inat.py` — iNaturalist API 수집 + 라이선스 CSV 기록
-- [ ] `scripts/crawl_search.py` — Bing/Google 키워드 크롤링(실사용 유사 사진)
-- [ ] `기타` 클래스 수집 — 회 접시·어시장·낚시터 풍경·사람·24종 밖 어종(향어·학꽁치 등)
-- [ ] `scripts/dedup.py` — phash 중복 제거
-- [ ] `scripts/prefilter.py` — 사전학습 모델로 비물고기 1차 필터
-- [ ] `scripts/split.py` — 70/15/15 stratified 분할
-- [ ] 사람 검수 (요리사진·여러마리·오라벨 제거)
-- [ ] `python -m src.dataset --check` 로 종별 분포 확인, 부족한 종 추가 수집
+### Phase 2 — 데이터 수집·정제·분할 ✅ (완료, 2026-08-14)
+- [x] `scripts/crawl_inat.py` — iNaturalist API (25클래스 taxon 매칭 확인, 학명 3건 정정)
+- [x] `scripts/crawl_ddg.py` — **DuckDuckGo 검색 (실사용 사진 주 소스)**
+- [x] `scripts/crawl_search.py` — Bing 크롤링 (보조. 키워드당 20~60장이면 고갈)
+- [x] `scripts/crawl_naver.py` — 네이버 API (미사용: 신규 앱에 '검색' API 권한이 없음)
+- [x] `scripts/dedup.py` — phash 중복 제거 + 거부 목록 영구화
+- [x] `scripts/prefilter.py` — ImageNet 어류 확률 필터 + `make_scorer`(크롤링 중 실시간 판정)
+- [x] `scripts/review.py` — 검수 대상만 모아 보여주고 삭제 결과 확정
+- [x] `scripts/refsheet.py` — 혼동 쌍 비교 참고표 (검수 보조)
+- [x] `scripts/split.py` — 70/15/15 + obsid/phash 그룹 누수 방지
+- [x] 사람 검수 — 혼동 쌍 web 사진 1,370장 검토 → 690장 삭제(50%)
+- [x] `기타` 클래스 250장 (4버킷 배분)
 - 상세 → [data-pipeline.md](data-pipeline.md)
 
 ### Phase 3 — 학습 ⬜ (2~3일)
