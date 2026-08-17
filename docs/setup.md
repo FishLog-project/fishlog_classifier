@@ -56,7 +56,8 @@ python -m scripts.package_data          # → data/splits.zip (약 1.07GB, 6,999
 
 # 셀 2 — 데이터를 Drive에서 "로컬 디스크로 풀기" (직접 읽기 금지)
 from google.colab import drive; drive.mount('/content/drive')
-!unzip -q /content/drive/MyDrive/fishlog/splits.zip -d /content/fishilog_ai/data/
+!rm -rf /content/fishilog_ai/data/splits
+!unzip -q -o /content/drive/MyDrive/fishlog/splits.zip -d /content/fishilog_ai/data/
 !python -m src.dataset --check          # 4904 / 1048 / 1047 = 6999 확인
 
 # 셀 3 — 체크포인트는 Drive에 남겨 세션 끊김에 대비
@@ -71,6 +72,8 @@ from google.colab import drive; drive.mount('/content/drive')
 - 반대로 `models/` 는 큰 파일 몇 개뿐이라 Drive 링크가 이득이다.
 - 세션이 끊기면 셀 1~3을 다시 돌린 뒤 `!python -m src.train --resume models/last.pt`.
 - 한글 폴더명이 깨져 보이면 `!python -m src.dataset --check` 의 **합계 숫자**로 판단할 것 (표시 문제일 뿐 학습에는 영향 없음).
+- `unzip` 에 `-o` 는 필수다. Colab의 `!` 명령은 stdin을 못 받으므로, 덮어쓰기 확인 프롬프트가 뜨면
+  `y` 를 눌러도 전달되지 않고 파일 수만큼 무한 반복된다.
 
 ## 자주 쓰는 명령
 
