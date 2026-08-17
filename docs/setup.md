@@ -56,6 +56,19 @@ from google.colab import drive; drive.mount('/content/drive')
 |---|---|
 | 24종 목록·수집 현황 | `python -m src.config --summary` |
 | 폴더·labels.json 재생성 | `python -m src.config --init` |
+| **학명→taxon 매칭 확인** | `python -m scripts.crawl_inat --dry-run --species all` |
+| iNat 수집 | `python -m scripts.crawl_inat --species all` |
+| 검색 수집(주) | `python -m scripts.crawl_ddg --species all` |
+| 검색 수집(보조) | `python -m scripts.crawl_search --species all` |
+| 검수 폴더 생성 | `python -m scripts.review --make --species confusable` |
+| **검수 결과 확정** | `python -m scripts.review --record` |
+| 혼동 쌍 참고표 | `python -m scripts.refsheet` → `reports/ref_*.jpg` |
+| 중복 제거(raw→clean) | `python -m scripts.dedup` |
+| 비물고기 필터 리포트 | `python -m scripts.prefilter` → `reports/prefilter.csv` |
+| 비물고기 실제 격리 | `python -m scripts.prefilter --apply` |
+| **검수 결과 확정** | `python -m scripts.dedup --record-deleted` |
+| 라벨 충돌 검사 | `python -m scripts.dedup --species confusable --report-cross` |
+| 분할(clean→splits) | `python -m scripts.split` |
 | split별 분포 점검 | `python -m src.dataset --check` |
 | 증강 결과 눈으로 확인 | `python -m src.dataset --preview` → `reports/aug_preview.jpg` |
 | 배치 1개 로드 테스트 | `python -m src.dataset --batch` |
@@ -74,3 +87,7 @@ from google.colab import drive; drive.mount('/content/drive')
 | `torch.cuda.is_available() == False` | CPU 휠 설치됨 또는 드라이버 구버전. 위 4단계 재설치 |
 | albumentations 인자 에러 | 2.x API 기준으로 작성됨. `pip install -U "albumentations>=2.0"` |
 | 한글이 콘솔에서 깨짐 | `$env:PYTHONUTF8="1"` |
+| `ModuleNotFoundError: src` | `python scripts/x.py` 로 실행함. `python -m scripts.x` 로 실행할 것 |
+| crawl_inat이 특정 종만 0장 | 학명이 iNat에서 개정됨. `--dry-run` 으로 확인 후 `config.SPECIES` 수정 |
+| crawl_search가 0장 | Bing HTML 구조 변경. `pip install -U icrawler` 후 `--verbose` 로 확인 |
+| 검수로 지운 파일이 되살아남 | `dedup --record-deleted` 를 안 돌렸다. [data-pipeline.md](data-pipeline.md) 참조 |

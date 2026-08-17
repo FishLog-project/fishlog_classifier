@@ -2,6 +2,12 @@
 data/raw/
 data/clean/
 data/splits/
+data/reject/
+data/review/
+# dedup이 매번 다시 만드는 파생 파일 (licenses.csv·rejected.txt는 커밋한다 — 출처 근거/검수 결과)
+data/dup_groups.csv
+data/clean_manifest.csv
+data/review_manifest.csv
 !data/**/.gitkeep
 
 # 산출물
@@ -16,6 +22,9 @@ __pycache__/
 .venv/
 venv/
 .ipynb_checkpoints/
+
+# API 키 (네이버 검색 API 등) — 절대 커밋 금지
+.env
 
 # OS/IDE
 .DS_Store

@@ -6,25 +6,89 @@
 ## 파이프라인 순서
 
 ```
-(1) crawl_inat.py    iNaturalist API   → data/raw/<종>/inat_*.jpg   + licenses.csv
-(2) crawl_search.py  Bing 키워드 크롤링 → data/raw/<종>/web_*.jpg
-(3) dedup.py         phash 중복 제거
-(4) prefilter.py     사전학습 모델로 비물고기 후보 걸러내기
-(5) 사람 검수         썸네일로 오라벨·요리사진·여러마리 삭제 → data/clean/<종>/
-(6) split.py         70/15/15 stratified → data/splits/{train,val,test}/<종>/
+(1) python -m scripts.crawl_inat     iNaturalist API  → data/raw/<종>/inat_*.jpg + licenses.csv
+(2) python -m scripts.crawl_ddg      DuckDuckGo 검색  → data/raw/<종>/web_*.jpg  + licenses.csv
+    python -m scripts.crawl_search   (보조) Bing
+(3) python -m scripts.dedup          phash 중복 제거   → data/clean/<종>/ (하드링크)
+(4) python -m scripts.prefilter --apply     비물고기·썸네일 → data/reject/<종>/
+(5) python -m scripts.review --make --species confusable    검수 대상만 모아 폴더 생성
+    (탐색기에서 data/review/<종>/ 를 훑고 삭제)
+    python -m scripts.review --record                       ← 검수 결과 확정(필수)
+    python -m scripts.dedup                                 ← clean 재구성
+(6) python -m scripts.split          70/15/15 → data/splits/{train,val,test}/<종>/
 ```
 
+**검수는 검색 수집분(`web_*`)만 한다.** iNat 사진은 학명으로 커뮤니티 검증된 것이라 라벨 오류가 거의 없다.
+`review.py`가 `web_*`만 골라 별도 폴더로 모아주므로 iNat 사진 사이를 스크롤할 필요가 없다.
+
+**어종 구분은 검수자가 하지 않는다.** 비전문가가 판단할 수 있는 것만 본다:
+조리·회 사진 / 어시장 진열·여러 마리 / 도감 그림·차트·일러스트 / 물고기 없음 / 물고기가 너무 작음.
+어종 오라벨은 1차 학습 후 **모델 예측과 폴더 라벨이 어긋나는 사진**을 뽑아 2차로 처리한다.
+(여러 마리 사진을 손으로 잘라 쓰는 것은 시간 대비 효과가 없다 — 증강의 RandomResizedCrop이 비슷한 역할을 한다)
+
+전부 `python -m scripts.<name>` 으로 실행한다(프로젝트 루트에서). `python scripts/x.py` 는 `src` 임포트에 실패한다.
+각 스크립트는 `--dry-run` 을 지원한다 — **다운로드/이동 전에 항상 먼저 돌려볼 것**.
+
 **모든 스크립트는 `src/config.py`의 `SPECIES`에서 학명·키워드·목표량을 읽어 쓴다.** 종 목록을 스크립트에 다시 적지 말 것.
+`--species` 인자는 별칭을 받는다: `all` / `fish` / `other` / `confusable` / `easy|medium|hard` / `sea|fresh`.
+
+### raw / clean / reject 의 관계 (중요)
+
+- **`data/raw/` 는 불변**이다. 수집은 비싸므로(레이트리밋·시간) 절대 손대지 않는다.
+- **`data/clean/` 은 raw의 하드링크**다. 디스크 추가 사용 0. 정제 기준을 바꿔도 재수집 불필요.
+- 검수·프리필터로 버린 파일은 **`data/rejected.txt` 에 영구 기록**된다.
+  이게 없으면 크롤링을 더 한 뒤 dedup을 재실행할 때 **검수로 지운 파일이 되살아난다**(clean이 raw에서 다시 링크되므로).
+  → 검수를 끝냈으면 반드시 `python -m scripts.dedup --record-deleted` 를 돌려 확정한다.
+  (`data/clean_manifest.csv` 와 현재 clean을 비교해 '사람이 지운 것'을 역산한다)
+- 오탐을 되살리려면: `data/reject/` 에서 파일을 되돌리고 `data/rejected.txt` 의 해당 줄을 지운다.
 
 ## 소스 우선순위
 
 | 순위 | 소스 | 특징 | 비고 |
 |---|---|---|---|
-| 1 | **iNaturalist / GBIF API** | 학명 라벨·라이선스·지오태그 포함, 전문가 검증(research grade) | 라벨 오염 거의 없음. 혼동 쌍은 여기서 우선 채운다 |
-| 2 | **검색엔진 크롤링** | "○○ 낚시" 한글 키워드 → 손에 든/바닥/젖은 **실사용 유사 사진** | 라벨 오염 많음, 검수 필수 |
-| 3 | 공개 데이터셋(Kaggle 등) | 겹치는 종만 보조 활용 | 라이선스 확인 |
+| 1 | **iNaturalist API** | 학명 라벨·라이선스·지오태그, 커뮤니티 검증(research grade) | 라벨 오염 거의 없음 → **검수 생략 가능** |
+| 2 | **DuckDuckGo 검색** (`crawl_ddg`) | 실사용 유사 사진. 요청당 100장, 한국계 도메인 55~65% | 종은 맞지만 어시장·조리 사진이 많다 → 검수 필수 |
+| 3 | Bing 검색 (`crawl_search`) | 보조. 키워드당 20~60장이면 고갈 | 무관한 이미지를 조용히 섞는 문제 있음(아래) |
+| — | 네이버 검색 API (`crawl_naver`) | 코드는 있으나 **미사용** | 신규 앱 등록 화면에 '검색' API가 없다(2026-08-14) |
+| — | Google / Baidu | 사용 불가 | Google: icrawler 파서 깨짐. Baidu: 중국 결과 |
 
 도메인 갭 대응: 학습셋에 **실사용 유사 사진을 반드시 섞는다**. iNat 사진만으로 학습하면 실제 앱 사진에서 정확도가 떨어진다.
+→ `crawl_search --min-web N` (기본 100)이 이걸 강제한다. **총 목표를 iNat만으로 채운 클래스도 web 사진을 N장 확보한다.**
+이 장치가 없으면 "부족분 = 목표 − 보유" 계산 때문에 iNat로 250장을 채운 클래스는 검색 사진이 0장이 된다(2026-08-12 실제로 발생).
+
+### ⚠️ Bing은 검색어와 무관한 이미지를 조용히 섞어 준다 (2026-08-13 확인)
+
+에러도 경고도 없이, 갑자기 검색어와 아무 상관없는 이미지를 페이지 단위로 돌려준다.
+`우럭 조황` 검색에 **필리핀 경찰 로고·선 드로잉·꽃 그림·인물 사진**이 들어왔고, 한 실행분의 **76%가 쓰레기**였다.
+
+시도해서 **실패한** 대응:
+- 스레드 축소(4→2), 키워드 간 대기(8초) — 효과 없음
+- 페이지 깊이(offset) 제한 — 깊은 페이지도 정상일 때가 많음. 원인이 아니다
+- 쿼리 URL 인코딩 — icrawler 그대로도 정상. 원인이 아니다
+
+같은 코드가 몇 분 뒤에는 완벽히 정상 결과를 준다. **간헐적이고 예측 불가**다.
+
+**유일하게 작동한 대응 = 받는 즉시 점수로 판정해 버리기** (`crawl_search --score-min 0.15`).
+ImageNet 사전학습 모델의 어류 클래스 확률 합이 판정 기준이고, 두 분포가 완전히 분리된다:
+
+| | fish_prob |
+|---|---|
+| 정상 낚시 사진 (실측 12장) | 0.56 ~ 0.94 (중간 0.85) |
+| 무관한 이미지 | 0.0003 ~ 0.08 |
+
+`keep_file()`이 False를 돌려주면 icrawler가 할당량도 소비하지 않아, 그 자리를 정상 사진으로 다시 채운다.
+**`--score-min 0` 으로 끄지 말 것.** 끄면 데이터셋의 3/4이 쓰레기가 될 수 있다.
+(`기타` 클래스는 일부러 비물고기를 모으므로 자동 제외된다)
+
+### 2026-08-12 실측으로 확인된 소스 특성
+
+- **iNat 사진은 대부분 수중/표본 사진**이다(돌돔 샘플 확인). 손에 든 사진은 거의 없다 → 검색 크롤링이 필수다.
+- **검색 결과의 25~30%는 유튜브/블로그 썸네일**(큰 글씨 자막)이거나 물고기가 없는 낚시 풍경이다.
+  텍스트가 박힌 사진은 모델이 자막을 특징으로 학습할 수 있어 해롭다 → prefilter가 `overlay?` 로 표시한다.
+- **학명은 iNat 활성 이름이어야 한다.** 개정된 이름을 쓰면 조회 결과가 0건이 되고 그 종만 조용히 비어버린다.
+  `python -m scripts.crawl_inat --dry-run --species all` 로 25클래스 전부 매칭을 먼저 확인한다.
+- iNat 관측 수가 MVP 250장에 못 미치는 종이 있다(볼락 39, 방어 36, 쏘가리 46, 삼치 72건).
+  → `config.EXTRA_INAT_TAXA` 로 근연 분류군을 보충하고, 나머지는 검색 크롤링으로 채운다.
 
 ## 수집 목표 — MVP 우선 (확정: A-11)
 
@@ -53,7 +117,17 @@
 | 낚시 관련 비물고기 | 20% | 낚시터 풍경, 낚싯대, 루어, 릴, 뜰채, 쿨러 |
 | 일반 오촬영 | 20% | 사람, 손, 바닥, 하늘, 반려동물, 음식 |
 
-- `iNaturalist`에서 학명으로 못 긁으므로 대부분 검색 크롤링으로 채운다 (`config.SPECIES["기타"].scientific == ""` → 크롤러는 이 클래스를 건너뛰도록 분기).
+구성 명세는 `config.OTHER_BUCKET_RATIO` / `OTHER_KEYWORDS` / `OTHER_INAT_TAXA` 에 있다(문서에 다시 적지 말 것).
+
+- `24종 밖 어종` 버킷은 **학명이 있으므로 iNat에서 깨끗하게 긁는다** (`crawl_inat --species other`).
+  나머지 3버킷은 검색 크롤링 담당 (`crawl_search --species other`).
+- **24종과 육안 구분이 안 되는 종은 기타에 넣지 않는다.** 예: 밀치(가숭어)를 기타에 넣으면 숭어 재현율이 깎이고,
+  우럭볼락을 넣으면 우럭/볼락이 흔들린다. 오분류를 감수하는 편이 낫다.
+- **`향어`는 기타가 아니다.** 잉어(*Cyprinus carpio*)의 품종이라 15번 클래스와 같은 종이다.
+- `기타`는 prefilter 대상에서 기본 제외된다(일부러 비물고기를 모은 클래스).
+- `crawl_search`는 **버킷별 보유량을 빼고** 배분한다(iNat분은 licenses.csv의 `source`/`source_id`로 역추적).
+  안 빼면 other_fish만 두 번 채워지고 목표량에 먼저 도달해 '일반 오촬영' 버킷이 0장으로 남는다.
+  또 버킷을 번갈아(round-robin) 돌려서 중간에 멈춰도 4버킷이 섞여 있게 한다.
 - 실제 앱 사용자가 잘못 찍을 법한 사진을 상상해서 넣는 게 가장 효과적이다.
 
 ## 검수 기준 (삭제 대상)
@@ -68,6 +142,14 @@
 **유지할 것**: 손에 들고 찍은 사진, 바닥/뜰채/쿨러 위 사진, 젖은 상태, 역광, 흐릿한 폰카 사진 — 실사용 분포와 같다.
 
 속도 팁: 윈도우 탐색기 '아주 큰 아이콘' 뷰로 훑으면 시간당 1,000장 정도 검수 가능.
+
+## 사람 검수 실무 (유일한 수작업, 2~3시간)
+
+1. `python -m scripts.prefilter` → `reports/prefilter.csv` 를 엑셀에서 `fish_prob` 오름차순 정렬해 눈으로 확인.
+   임계값이 적절하면 `--apply` (기본 0.08. 낮추면 보수적).
+2. `data/clean/<종>/` 을 탐색기 **'아주 큰 아이콘'** 뷰로 훑으며 아래 기준으로 삭제. 시간당 약 1,000장.
+3. **끝나면 `python -m scripts.dedup --record-deleted`** — 안 돌리면 다음 dedup에서 되살아난다.
+4. 혼동 쌍은 `python -m scripts.dedup --species confusable --report-cross` 로 라벨 충돌을 한 번 더 본다.
 
 ## 분할 규칙 (`split.py`)
 
@@ -94,6 +176,7 @@ inat_12345_67890.jpg,붕어,inaturalist,12345,cc-by-nc,someone,https://...,2026-
 - [ ] `python -m src.dataset --check` 에서 0장인 클래스 없음 (25개 전부)
 - [ ] 모든 클래스 200장 이상
 - [ ] `기타`는 위 4개 구성이 골고루 섞여 있음
-- [ ] train/val/test 어디에도 중복 이미지 없음
-- [ ] 혼동 쌍 5그룹은 육안 검수 2회 완료
-- [ ] `data/licenses.csv` 행 수 ≈ 전체 이미지 수
+- [ ] train/val/test 어디에도 중복 이미지 없음 (dedup + split 그룹핑으로 자동 보장)
+- [ ] 혼동 쌍 6그룹은 육안 검수 2회 완료
+- [ ] 검수 후 `dedup --record-deleted` 실행 완료
+- [ ] `data/licenses.csv` 행 수 ≈ raw 전체 이미지 수
