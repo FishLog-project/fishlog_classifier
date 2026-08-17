@@ -10,6 +10,9 @@ torch>=2.4
 torchvision>=0.19
 timm>=1.0.9
 albumentations>=2.0        # 2.x API 기준으로 dataset.py 작성됨
+# albumentations→albucore 하위 의존성. 5.1.2는 Windows cp311 휠이 없어 소스 빌드(MSVC 14+)를
+# 요구한다 → 휠이 있는 5.1.1로 고정. 상위 버전이 휠을 내면 이 핀은 지워도 된다.
+stringzilla==5.1.1
 opencv-python>=4.10
 pillow>=10.3
 numpy>=1.26
@@ -29,5 +32,6 @@ onnxruntime>=1.19
 
 # --- Phase 2 데이터 수집 ---
 requests>=2.32
-icrawler>=0.6.9
+icrawler                   # Bing 이미지 크롤링 (scripts/crawl_search.py)
+ddgs                       # DuckDuckGo 이미지 검색 (scripts/crawl_ddg.py) — 한국 낚시 사진 주 소스>=0.6.9
 imagehash>=4.3

@@ -88,44 +88,50 @@ SPECIES: dict[str, Species] = {
     for s in [
         # ---------------- 바다 (14) ----------------
         _s("감성돔", "Acanthopagrus schlegelii", "hard", "sea",
-           ["감성돔 낚시", "감성돔 조황"], ["벵에돔"], ["구로다이"]),
+           ["감성돔 낚시", "감성돔 조황", "감성돔 찌낚시", "감성돔 갯바위"], ["벵에돔"], ["구로다이"]),
         _s("농어", "Lateolabrax japonicus", "medium", "sea",
-           ["농어 낚시", "농어 루어"], ["숭어"], []),
+           ["농어 낚시", "농어 루어", "농어 조황", "농어 웨이딩"], ["숭어"], []),
         _s("돌돔", "Oplegnathus fasciatus", "easy", "sea",
-           ["돌돔 낚시"], [], ["줄돔"]),
+           ["돌돔 낚시", "돌돔 조황", "돌돔 선상낚시"], [], ["줄돔"]),
         _s("벵에돔", "Girella punctata", "medium", "sea",
-           ["벵에돔 낚시"], ["감성돔"], []),
+           ["벵에돔 낚시", "벵에돔 조황", "긴꼬리벵에돔", "벵에돔 갯바위"], ["감성돔"], []),
         _s("우럭", "Sebastes schlegelii", "hard", "sea",
-           ["우럭 낚시", "조피볼락"], ["볼락"], ["조피볼락"]),
+           ["우럭 낚시", "조피볼락", "우럭 조황", "우럭 선상낚시",
+            "우럭 배낚시", "서해 우럭", "우럭 대물"], ["볼락"], ["조피볼락"]),
         _s("참돔", "Pagrus major", "easy", "sea",
-           ["참돔 낚시", "참돔 타이라바"], [], []),
+           ["참돔 낚시", "참돔 타이라바", "참돔 조황", "참돔 선상낚시"], [], []),
         _s("광어", "Paralichthys olivaceus", "easy", "sea",
-           ["광어 낚시", "넙치"], [], ["넙치"]),
+           ["광어 낚시", "넙치", "광어 다운샷", "광어 조황", "넙치 낚시",
+            "광어 배낚시", "서해 광어", "광어 대물"], [], ["넙치"]),
         _s("볼락", "Sebastes inermis", "hard", "sea",
-           ["볼락 낚시", "볼락 루어"], ["우럭"], ["뽈락"]),
+           ["볼락 낚시", "볼락 루어", "볼락 조황", "볼락 다운샷", "볼락 웜",
+            "볼락 밤낚시", "통영 볼락", "볼락 대물"], ["우럭"], ["뽈락"]),
         _s("갈치", "Trichiurus lepturus", "easy", "sea",
-           ["갈치 낚시"], [], []),
+           ["갈치 낚시", "갈치 조황", "갈치 선상낚시"], [], []),
         _s("고등어", "Scomber japonicus", "medium", "sea",
-           ["고등어 낚시"], ["전갱이", "삼치"], []),
+           ["고등어 낚시", "고등어 조황"], ["전갱이", "삼치"], []),
         _s("삼치", "Scomberomorus niphonius", "medium", "sea",
-           ["삼치 낚시"], ["고등어"], []),
+           ["삼치 낚시", "삼치 루어", "삼치 조황", "삼치 캐스팅",
+            "삼치 지깅", "가을 삼치", "삼치 대물"], ["고등어"], []),
         _s("방어", "Seriola quinqueradiata", "easy", "sea",
-           ["방어 낚시"], [], ["부시리"]),
+           ["방어 낚시", "방어 조황", "부시리 낚시"], [], ["부시리"]),
         _s("전갱이", "Trachurus japonicus", "medium", "sea",
-           ["전갱이 낚시", "아지"], ["고등어"], ["아지"]),
+           ["전갱이 낚시", "아지", "전갱이 조황", "아지 지깅", "전갱이 선상",
+            "전갱이 사비키", "전갱이 카고", "전갱이 대물"], ["고등어"], ["아지"]),
         _s("숭어", "Mugil cephalus", "medium", "sea",
-           ["숭어 낚시"], ["농어"], []),
+           ["숭어 낚시", "숭어 조황"], ["농어"], []),
         # ---------------- 담수 (10) ----------------
         _s("붕어", "Carassius carassius", "hard", "fresh",
            ["붕어 낚시", "붕어 조황"], ["잉어"], []),
         _s("잉어", "Cyprinus carpio", "hard", "fresh",
            ["잉어 낚시"], ["붕어"], ["향어"]),
         _s("쏘가리", "Siniperca scherzeri", "easy", "fresh",
-           ["쏘가리 낚시"], [], []),
+           ["쏘가리 낚시", "쏘가리 루어", "쏘가리 조황", "황쏘가리", "쏘가리 웨이딩",
+            "임진강 쏘가리", "쏘가리 대물", "쏘가리 밤낚시"], [], []),
         _s("배스", "Micropterus salmoides", "easy", "fresh",
            ["배스 낚시", "배스 조황"], [], ["큰입배스", "큰입우럭"]),
         _s("블루길", "Lepomis macrochirus", "easy", "fresh",
-           ["블루길", "블루길 낚시"], [], ["파랑볼우럭"]),
+           ["블루길", "블루길 낚시", "블루길 조과", "블루길 대물"], [], ["파랑볼우럭"]),
         _s("가물치", "Channa argus", "easy", "fresh",
            ["가물치 낚시"], [], []),
         _s("메기", "Silurus asotus", "easy", "fresh",
@@ -134,8 +140,12 @@ SPECIES: dict[str, Species] = {
            ["송어 낚시", "무지개송어"], [], ["무지개송어"]),
         _s("피라미", "Zacco platypus", "easy", "fresh",
            ["피라미", "피라미 낚시"], [], []),
-        _s("동자개", "Tachysurus fulvidraco", "easy", "fresh",
-           ["동자개", "빠가사리"], ["메기"], ["빠가사리"]),
+        # iNat 활성 학명은 Tachysurus sinensis (common name "Korean Bullhead").
+        # Tachysurus/Pelteobagrus fulvidraco 는 동의어로 취급되어 검색이 안 잡힌다.
+        _s("동자개", "Tachysurus sinensis", "easy", "fresh",
+           ["동자개", "빠가사리", "빠가사리 낚시", "동자개 낚시",
+            "빠가사리 조과", "빠가사리 대물", "동자개 물고기"], ["메기"],
+           ["빠가사리", "Tachysurus fulvidraco"]),
         # ---------------- OOD 처리용 (24종 아님, 항상 맨 뒤) ----------------
         # 비물고기/24종 밖 어종을 흡수하는 25번째 클래스. 이게 없으면 고양이 사진도
         # 24종 중 하나로 강제 분류된다. (decisions.md A-10)
@@ -153,6 +163,62 @@ OTHER_IDX = len(CLASSES) - 1
 FISH_CLASSES: list[str] = [c for c in CLASSES if c != OTHER_CLASS]  # 실제 어종 24종
 CLASS_TO_IDX: dict[str, int] = {name: i for i, name in enumerate(CLASSES)}
 IDX_TO_CLASS: dict[int, str] = {i: name for i, name in enumerate(CLASSES)}
+
+# ---------------------------------------------------------------------------
+# `기타`(OOD) 클래스 수집 명세
+# ---------------------------------------------------------------------------
+# 한 종류에 쏠리면 OOD 흡수가 안 된다(요리 사진만 1000장 → 고양이를 못 거른다).
+# 4개 버킷을 비중대로 섞는다. 크롤러는 이 비중으로 버킷별 목표량을 나눈다.
+# 상세 근거 → docs/data-pipeline.md "기타 클래스 수집"
+OTHER_BUCKET_RATIO: dict[str, float] = {
+    "other_fish": 0.40,   # 24종 밖 어종 (가장 중요: 실제 오분류의 주범)
+    "cooked": 0.20,       # 조리·시장 사진
+    "gear": 0.20,         # 낚시 관련 비물고기
+    "misc": 0.20,         # 일반 오촬영
+}
+
+OTHER_KEYWORDS: dict[str, tuple[str, ...]] = {
+    # ⚠️ '향어'는 넣지 않는다 — 잉어(Cyprinus carpio)의 품종이라 15번 클래스와 같은 종이다.
+    #    (계획서엔 24종 밖 예시로 적혀 있지만 config의 잉어 aliases에 이미 포함돼 있다.)
+    # ⚠️ 24종과 육안 구분이 안 되는 종(밀치=가숭어, 우럭볼락)은 넣지 않는다.
+    #    기타에 넣으면 숭어/우럭 재현율을 깎는다. 오분류를 감수하는 편이 낫다.
+    "other_fish": ("학꽁치", "붕장어", "대구 생선", "갑오징어", "문어", "꽃게",
+                   "쥐노래미", "황어", "빙어", "가오리"),
+    "cooked": ("회 접시", "생선구이", "어시장", "수산시장 생선", "매운탕", "초밥"),
+    "gear": ("낚시터 풍경", "낚싯대", "루어 채비", "낚시 릴", "뜰채", "낚시 쿨러",
+             "갯바위 낚시"),
+    "misc": ("사람 얼굴", "손 사진", "바닥 콘크리트", "하늘 구름", "강아지", "고양이",
+             "음식 사진"),
+}
+
+# `기타`의 other_fish 버킷은 학명이 있으므로 iNaturalist에서 깨끗하게 긁을 수 있다.
+# (검색 크롤링보다 라벨 오염이 훨씬 적어 여기부터 채운다.)
+# 학명은 **iNaturalist 활성 이름** 기준. 개정된 이름을 쓰면 검색이 0건이 된다
+# (`python -m scripts.crawl_inat --dry-run` 으로 항상 먼저 확인할 것).
+OTHER_INAT_TAXA: tuple[str, ...] = (
+    "Hypophthalmichthys nobilis",   # 대두어(백연어) — 잉어와 헷갈리는 대형 담수어
+    "Hyporhamphus sajori",          # 학꽁치
+    "Conger myriaster",             # 붕장어
+    "Gadus macrocephalus",          # 대구
+    "Acanthosepion esculentum",     # 갑오징어 (구명 Sepia esculenta)
+    "Octopus vulgaris",             # 문어
+    "Portunus trituberculatus",     # 꽃게
+    "Hexagrammos otakii",           # 쥐노래미
+    "Pseudaspius hakonensis",       # 황어 (구명 Tribolodon hakonensis)
+    "Pseudorasbora parva",          # 참붕어 (붕어 오분류 유발)
+)
+
+# 종당 iNat 관측 수가 부족한 클래스를 같은/근연 분류군으로 보충한다.
+# 넣기 전 기준: **낚시인이 같은 이름으로 부르는 수준**이어야 한다. 애매하면 넣지 말고
+# 검색 크롤링으로 채운다 (라벨 노이즈가 혼동 쌍 정확도를 직접 깎는다).
+EXTRA_INAT_TAXA: dict[str, tuple[str, ...]] = {
+    # iNat의 Carassius carassius는 유럽 붕어. 한국 붕어에 더 가까운 은붕어류를 보충.
+    "붕어": ("Carassius gibelio", "Carassius langsdorfii"),
+    # config가 부시리(S. lalandi)를 방어의 이명으로 묶었다 → iNat 36건 → 1,000건대로.
+    "방어": ("Seriola lalandi",),
+    # 일본에서 메바루 3종으로 쪼갠 것들. 한국에선 다 '볼락'.
+    "볼락": ("Sebastes cheni", "Sebastes ventricosus"),
+}
 
 # 평가 시 집중 점검할 혼동 쌍/그룹 (Phase 4 혼동행렬에서 따로 뽑아본다)
 CONFUSABLE_GROUPS: list[tuple[str, ...]] = [
