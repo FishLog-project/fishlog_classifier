@@ -43,7 +43,7 @@ python -m src.config --summary
 python -m scripts.package_data          # → data/splits.zip (약 1.07GB, 6,999장)
 ```
 
-이 zip을 Google Drive `MyDrive/fishilog/splits.zip` 에 업로드한다.
+이 zip을 Google Drive `MyDrive/fishlog/splits.zip` 에 업로드한다.
 (`data/*.zip` 은 .gitignore 대상 — 레포에 커밋되지 않는다.)
 
 ### 1) Colab 셀 (런타임 → GPU/T4 선택 후)
@@ -56,12 +56,12 @@ python -m scripts.package_data          # → data/splits.zip (약 1.07GB, 6,999
 
 # 셀 2 — 데이터를 Drive에서 "로컬 디스크로 풀기" (직접 읽기 금지)
 from google.colab import drive; drive.mount('/content/drive')
-!unzip -q /content/drive/MyDrive/fishilog/splits.zip -d /content/fishilog_ai/data/
+!unzip -q /content/drive/MyDrive/fishlog/splits.zip -d /content/fishilog_ai/data/
 !python -m src.dataset --check          # 4904 / 1048 / 1047 = 6999 확인
 
 # 셀 3 — 체크포인트는 Drive에 남겨 세션 끊김에 대비
-!mkdir -p /content/drive/MyDrive/fishilog/models
-!rm -rf models && ln -s /content/drive/MyDrive/fishilog/models models
+!mkdir -p /content/drive/MyDrive/fishlog/models
+!rm -rf models && ln -s /content/drive/MyDrive/fishlog/models models
 
 # 셀 4 — 학습
 !python -m src.train --batch-size 64 --num-workers 2

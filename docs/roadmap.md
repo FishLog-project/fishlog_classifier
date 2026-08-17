@@ -35,7 +35,7 @@ Phase 3 사전 준비는 2026-08-18에 끝났다:
 
 이제 할 일:
 
-1. `data/splits.zip` 을 Drive `MyDrive/fishilog/splits.zip` 에 **업로드** (수동)
+1. `data/splits.zip` 을 Drive `MyDrive/fishlog/splits.zip` 에 **업로드** (수동)
 2. Colab T4에서 `python -m src.train --batch-size 64 --num-workers 2` → `models/best.pt`
    (셀 순서 → [setup.md](setup.md) "Colab에서 학습하기")
 3. `models/history.csv` 로 학습 곡선 확인 → 과적합/과소적합 대응

@@ -87,7 +87,7 @@ def main() -> None:
         n = build(args.src, args.out)
         print(f"[..] {n:,}장 담음 → 검증")
     verify(args.out)
-    print("\n다음: 이 파일을 Drive `MyDrive/fishilog/splits.zip` 로 업로드 → docs/setup.md")
+    print("\n다음: 이 파일을 Drive `MyDrive/fishlog/splits.zip` 로 업로드 → docs/setup.md")
 
 
 if __name__ == "__main__":
