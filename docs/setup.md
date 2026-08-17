@@ -105,6 +105,7 @@ with zipfile.ZipFile('/content/drive/MyDrive/fishlog/splits.zip') as z:
 | split별 분포 점검 | `python -m src.dataset --check` |
 | 증강 결과 눈으로 확인 | `python -m src.dataset --preview` → `reports/aug_preview.jpg` |
 | 배치 1개 로드 테스트 | `python -m src.dataset --batch` |
+| **평가·오류 진단** | `python -m src.evaluate` → `reports/` 5종 |
 | **Colab용 zip 패키징** | `python -m scripts.package_data` → `data/splits.zip` |
 | 파이프라인 스모크 테스트 | `python -m src.train --smoke` |
 | 기본 학습 | `python -m src.train` |
@@ -126,3 +127,4 @@ with zipfile.ZipFile('/content/drive/MyDrive/fishlog/splits.zip') as z:
 | crawl_inat이 특정 종만 0장 | 학명이 iNat에서 개정됨. `--dry-run` 으로 확인 후 `config.SPECIES` 수정 |
 | crawl_search가 0장 | Bing HTML 구조 변경. `pip install -U icrawler` 후 `--verbose` 로 확인 |
 | 검수로 지운 파일이 되살아남 | `dedup --record-deleted` 를 안 돌렸다. [data-pipeline.md](data-pipeline.md) 참조 |
+| 그래프 라벨이 네모(두부) | matplotlib에 한글 폰트 없음. Colab: `!apt-get install -y fonts-nanum && rm -rf ~/.cache/matplotlib` 후 런타임 재시작 |

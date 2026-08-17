@@ -33,15 +33,21 @@ Phase 3 사전 준비는 2026-08-18에 끝났다:
 - [x] `python -m scripts.package_data` — `data/splits.zip` (1,067 MB, 한글 경로 UTF-8 검증 통과)
 - [x] `python -m src.train --smoke` — 2단계 파인튜닝·체크포인트 저장까지 통과 (스모크 산출물은 삭제함)
 
-이제 할 일:
+1차 학습도 끝났다 (val_top3 0.8721, 아래 "베이스라인 결과" 참조).
 
-1. `data/splits.zip` 을 Drive `MyDrive/fishlog/splits.zip` 에 **업로드** (수동)
-2. Colab T4에서 `python -m src.train --batch-size 64 --num-workers 2` → `models/best.pt`
-   (셀 순서 → [setup.md](setup.md) "Colab에서 학습하기")
-3. `models/history.csv` 로 학습 곡선 확인 → 과적합/과소적합 대응
-4. `src/evaluate.py` 작성 → test셋 Top-1/Top-3 + 혼동행렬
-   **볼락·삼치·전갱이·동자개의 per-class recall을 따로 볼 것** (데이터 부족 4종)
-5. 모델 예측으로 **라벨 오류 후보** 추출 → 검수 2차 (폴더 라벨 ≠ 고확신 예측)
+### ▶ 다음에 할 일 (Phase 4 — 진단)
+
+베이스라인이 합격선에 -2.8pp 미달이고 **과적합이 확실**하다. 튜닝을 더 하기 전에
+"어디서 틀리는가"를 먼저 봐야 한다 ([evaluation.md](evaluation.md) "목표 미달 시 대응 순서" 1번).
+
+1. `src/evaluate.py` 작성 → test 1,047장으로 산출물 5종 ([evaluation.md](evaluation.md) "산출물")
+2. **종별 recall** — 볼락·삼치·전갱이·동자개(데이터 부족 4종)가 무너졌는지 확인
+3. **혼동행렬** — 6그룹이 *대칭* 혼동이면 데이터 부족, *한쪽 쏠림*이면 라벨 오염
+4. **`worst_cases/`** — 확신했는데 틀린 50장. 어시장·조리 사진이 나오면 라벨 오염 확진
+5. 진단 결과에 따라 분기:
+   - 라벨 오염 → 검수 2차 후 재학습
+   - 데이터 부족 → 해당 종 보강 수집
+   - 둘 다 아니면 → 정규화 강화(mixup/cutmix) 또는 `convnext_tiny`
 
 상세 → [training.md](training.md) / [data-pipeline.md](data-pipeline.md)
 
@@ -74,13 +80,29 @@ Phase 3 사전 준비는 2026-08-18에 끝났다:
 - [x] `기타` 클래스 250장 (4버킷 배분)
 - 상세 → [data-pipeline.md](data-pipeline.md)
 
-### Phase 3 — 학습 ⬜ (2~3일)
-- [ ] 베이스라인: `efficientnet_b0`, 224px, 30 epoch
-- [ ] `python -m src.dataset --preview` 로 증강 결과 눈으로 확인
-- [ ] 학습 곡선 확인(`models/history.csv`), 과적합/과소적합 대응
-- [ ] (선택) `convnext_tiny` 비교
-- [ ] `models/best.pt` 확보
+### Phase 3 — 학습 🔶 (베이스라인 확보, 2026-08-18)
+- [x] `python -m src.dataset --preview` 로 증강 결과 눈으로 확인
+- [x] 베이스라인: `efficientnet_b0`, 224px, T4에서 **16.9분** / 26 epoch에서 조기종료
+- [x] `models/best.pt` 확보 (16.4MB, Drive `MyDrive/fishlog/models/`)
+- [x] 학습 곡선 확인 → **과적합 확진**
+- [ ] (선택) `convnext_tiny` 비교 — Phase 4 진단 후 판단
 - 상세 → [training.md](training.md)
+
+#### 베이스라인 결과 (val 1,048장)
+
+| 지표 | 결과 | 합격 기준 | 판정 |
+|---|---|---|---|
+| val Top-3 | **0.8721** (E18) | 0.90 | ❌ -2.8pp |
+| val Top-1 | 0.7538 (E25) | 0.75 | ✅ |
+
+**과적합.** train_top1 0.9895 vs val_top1 0.7538 → 간격 24pp.
+epoch 10 이후 train loss만 계속 떨어지고 val loss는 1.42에서 평평 → 조기종료(patience 8) 정당.
+**더 오래 돌려도 오르지 않는다.** epoch/LR 튜닝이 아니라 데이터 쪽 문제다.
+
+원인 후보 3가지는 현재 데이터로 구분 불가 → Phase 4 진단이 먼저다:
+1. 데이터 부족 (종당 250장은 25클래스 구분에 빠듯)
+2. **라벨 오염** (웹 크롤링분에 어시장·조리 사진 혼입)
+3. 혼동 쌍 6그룹의 본질적 난이도
 
 ### Phase 4 — 평가 ⬜ (1일)
 - [ ] `src/evaluate.py` 작성 (미작성)
