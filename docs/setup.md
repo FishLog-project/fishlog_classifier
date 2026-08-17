@@ -55,9 +55,14 @@ python -m scripts.package_data          # → data/splits.zip (약 1.07GB, 6,999
 !pip install -q timm "albumentations>=2.0" opencv-python-headless
 
 # 셀 2 — 데이터를 Drive에서 "로컬 디스크로 풀기" (직접 읽기 금지)
+# `!unzip` 을 쓰지 말 것 — 아래 주의사항 참조
 from google.colab import drive; drive.mount('/content/drive')
-!rm -rf /content/fishilog_ai/data/splits
-!unzip -q -o /content/drive/MyDrive/fishlog/splits.zip -d /content/fishilog_ai/data/
+
+import zipfile, shutil
+shutil.rmtree('/content/fishilog_ai/data/splits', ignore_errors=True)
+with zipfile.ZipFile('/content/drive/MyDrive/fishlog/splits.zip') as z:
+    z.extractall('/content/fishilog_ai/data')
+
 !python -m src.dataset --check          # 4904 / 1048 / 1047 = 6999 확인
 
 # 셀 3 — 체크포인트는 Drive에 남겨 세션 끊김에 대비
@@ -71,9 +76,12 @@ from google.colab import drive; drive.mount('/content/drive')
 - 데이터는 **zip 1개로 올려 Colab 로컬 디스크에 풀 것**. Drive를 직접 읽으면 소파일 수천 개에서 매우 느리다.
 - 반대로 `models/` 는 큰 파일 몇 개뿐이라 Drive 링크가 이득이다.
 - 세션이 끊기면 셀 1~3을 다시 돌린 뒤 `!python -m src.train --resume models/last.pt`.
-- 한글 폴더명이 깨져 보이면 `!python -m src.dataset --check` 의 **합계 숫자**로 판단할 것 (표시 문제일 뿐 학습에는 영향 없음).
-- `unzip` 에 `-o` 는 필수다. Colab의 `!` 명령은 stdin을 못 받으므로, 덮어쓰기 확인 프롬프트가 뜨면
-  `y` 를 눌러도 전달되지 않고 파일 수만큼 무한 반복된다.
+- **압축 해제에 `!unzip` 을 쓰면 안 된다** (2026-08-18 실측). Colab 기본 로케일이 UTF-8이 아니라
+  Info-ZIP이 한글 폴더명을 제멋대로 변환해 디스크에 쓴다 → `config.CLASSES` 와 매칭이 안 돼
+  `--check` 가 **전 클래스 0장**으로 나온다. 에러 없이 조용히 틀어지므로 특히 위험하다.
+  Python `zipfile` 은 zip에 박힌 UTF-8 플래그(`scripts/package_data.py` 가 검증)를 그대로 따르므로 안전하다.
+  덤으로 `!` 명령의 stdin 부재 문제(덮어쓰기 프롬프트가 파일 수만큼 무한 반복)도 함께 사라진다.
+- 압축 해제 후 표시되는 한글이 깨져 보여도 `--check` 의 **합계 숫자**가 맞으면 정상이다 (출력창 표시 문제).
 
 ## 자주 쓰는 명령
 
