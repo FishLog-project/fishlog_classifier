@@ -4,6 +4,8 @@ data/clean/
 data/splits/
 data/reject/
 data/review/
+# Colab 업로드용 패키징 산출물
+data/*.zip
 # dedup이 매번 다시 만드는 파생 파일 (licenses.csv·rejected.txt는 커밋한다 — 출처 근거/검수 결과)
 data/dup_groups.csv
 data/clean_manifest.csv

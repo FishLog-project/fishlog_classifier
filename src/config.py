@@ -14,8 +14,32 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+
+# ---------------------------------------------------------------------------
+# 콘솔 인코딩
+# ---------------------------------------------------------------------------
+def _force_utf8_console() -> None:
+    """Windows 기본 콘솔(cp949)에서 UnicodeEncodeError로 죽는 것을 막는다.
+
+    이 프로젝트의 로그는 한글 + `—`, `≥`, `→` 같은 기호를 쓴다. cp949는 한글은
+    되지만 이런 기호에서 터진다. 학습을 30 epoch 돌린 뒤 마지막 요약 print에서
+    죽는 사고가 실제로 가능하므로, 모든 진입점이 import하는 이 모듈에서 한 번에 막는다.
+    (`errors="replace"` — 표시가 깨질지언정 프로세스가 죽지는 않게)
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if stream is not None and getattr(stream, "encoding", "").lower() != "utf-8":
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass  # 파이프/리다이렉트 등 reconfigure 불가 환경 — 무시
+
+
+_force_utf8_console()
+
 
 # ---------------------------------------------------------------------------
 # 경로
