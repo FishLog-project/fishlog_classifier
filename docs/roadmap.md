@@ -2,34 +2,52 @@
 
 > 이 파일이 **진행 상황의 단일 기준**이다. 작업을 끝낼 때마다 체크박스와 "현재 위치"를 갱신한다.
 
-## 현재 위치 (2026-08-14 기준)
+## 현재 위치 (2026-08-18 기준)
 
-**Phase 2 완료 → Phase 3(학습) 착수.** 데이터 7,016장 분할 완료 (train 4,916 / val 1,051 / test 1,049).
+**Phase 2 완료 → Phase 3(학습) 착수.** 데이터 6,999장 분할 완료 (train 4,904 / val 1,048 / test 1,047).
 
 - 있는 것: `src/config.py`(25클래스), `src/dataset.py`, `src/train.py`,
-  `scripts/*` 8종(수집 3 + 정제 3 + 검수 보조 2), **분할된 데이터 7,016장**, `server/labels.json`
+  `scripts/*` 8종(수집 3 + 정제 3 + 검수 보조 2), **분할된 데이터 6,999장**, `server/labels.json`
 - 없는 것: `src/evaluate.py`, `src/export_onnx.py`, `server/main.py`·`inference.py`, `Dockerfile`
 - 확정: 25클래스(어종 24 + `기타`) / MVP 종당 250장 / 학습은 Colab T4 ([decisions.md](decisions.md) A-10~12)
 - 미결정: 공모전 마감일, 배포처, 24종 밖 어종 앱 UX ([decisions.md](decisions.md) B섹션)
 
-### 데이터 현황 (2026-08-14)
+### 데이터 현황 (2026-08-18 실측)
 
 | | 장수 |
 |---|---|
-| train / val / test | 4,916 / 1,051 / 1,049 (합 **7,016**) |
+| train / val / test | 4,904 / 1,048 / 1,047 (합 **6,999**) |
 | 소스 | iNaturalist 약 4,900 + 검색(DDG·Bing) 약 2,100 |
-| 격리분 | 1,911장 (자동 필터 1,221 + 사람 검수 690) |
+| 수집 원본 `data/raw` | 9,005 → 정제 후 `data/clean` 6,999 |
+| 격리분 | 1,901장 (자동 필터 `data/reject` 1,221 + 사람 검수 `data/review` 680) + 중복 제거 약 105 |
 
-**목표 미달 3종**: 볼락 146, 삼치 151, 전갱이 189.
+**목표 미달 3종**: 볼락 146, 삼치 151, 전갱이 189 (다음으로 적은 종은 동자개 216).
 iNat 관측 수 자체가 적고(볼락 39건), 검색 결과는 어시장·조리 사진이 대부분이라 검수에서 60~80% 탈락했다.
 → A-11 방침대로 **이대로 1차 학습**하고, 평가에서 이 3종의 recall을 보고 보강 여부를 정한다.
 
 ### ▶ 다음에 할 일 (Phase 3)
 
-1. `data/splits` 를 zip으로 묶어 Colab에 올린다 ([setup.md](setup.md) "Colab에서 학습하기")
-2. `python -m src.train` (T4, 30 epoch) → `models/best.pt`
-3. `src/evaluate.py` 작성 → test셋 Top-1/Top-3 + 혼동행렬
-4. 모델 예측으로 **라벨 오류 후보** 추출 → 검수 2차 (폴더 라벨 ≠ 고확신 예측)
+Phase 3 사전 준비는 2026-08-18에 끝났다:
+- [x] `python -m src.dataset --check` — 4,904 / 1,048 / 1,047 확인
+- [x] `python -m src.dataset --preview` — `reports/aug_preview.jpg` 육안 확인 (증강 정상)
+- [x] `python -m scripts.package_data` — `data/splits.zip` (1,067 MB, 한글 경로 UTF-8 검증 통과)
+- [x] `python -m src.train --smoke` — 2단계 파인튜닝·체크포인트 저장까지 통과 (스모크 산출물은 삭제함)
+
+1차 학습도 끝났다 (val_top3 0.8721, 아래 "베이스라인 결과" 참조).
+
+### ▶ 다음에 할 일 (Phase 4 — 진단)
+
+베이스라인이 합격선에 -2.8pp 미달이고 **과적합이 확실**하다. 튜닝을 더 하기 전에
+"어디서 틀리는가"를 먼저 봐야 한다 ([evaluation.md](evaluation.md) "목표 미달 시 대응 순서" 1번).
+
+1. `src/evaluate.py` 작성 → test 1,047장으로 산출물 5종 ([evaluation.md](evaluation.md) "산출물")
+2. **종별 recall** — 볼락·삼치·전갱이·동자개(데이터 부족 4종)가 무너졌는지 확인
+3. **혼동행렬** — 6그룹이 *대칭* 혼동이면 데이터 부족, *한쪽 쏠림*이면 라벨 오염
+4. **`worst_cases/`** — 확신했는데 틀린 50장. 어시장·조리 사진이 나오면 라벨 오염 확진
+5. 진단 결과에 따라 분기:
+   - 라벨 오염 → 검수 2차 후 재학습
+   - 데이터 부족 → 해당 종 보강 수집
+   - 둘 다 아니면 → 정규화 강화(mixup/cutmix) 또는 `convnext_tiny`
 
 상세 → [training.md](training.md) / [data-pipeline.md](data-pipeline.md)
 
@@ -58,17 +76,33 @@ iNat 관측 수 자체가 적고(볼락 39건), 검색 결과는 어시장·조�
 - [x] `scripts/review.py` — 검수 대상만 모아 보여주고 삭제 결과 확정
 - [x] `scripts/refsheet.py` — 혼동 쌍 비교 참고표 (검수 보조)
 - [x] `scripts/split.py` — 70/15/15 + obsid/phash 그룹 누수 방지
-- [x] 사람 검수 — 혼동 쌍 web 사진 1,370장 검토 → 690장 삭제(50%)
+- [x] 사람 검수 — 혼동 쌍 web 사진 1,370장 검토 → 680장 격리(약 50%)
 - [x] `기타` 클래스 250장 (4버킷 배분)
 - 상세 → [data-pipeline.md](data-pipeline.md)
 
-### Phase 3 — 학습 ⬜ (2~3일)
-- [ ] 베이스라인: `efficientnet_b0`, 224px, 30 epoch
-- [ ] `python -m src.dataset --preview` 로 증강 결과 눈으로 확인
-- [ ] 학습 곡선 확인(`models/history.csv`), 과적합/과소적합 대응
-- [ ] (선택) `convnext_tiny` 비교
-- [ ] `models/best.pt` 확보
+### Phase 3 — 학습 🔶 (베이스라인 확보, 2026-08-18)
+- [x] `python -m src.dataset --preview` 로 증강 결과 눈으로 확인
+- [x] 베이스라인: `efficientnet_b0`, 224px, T4에서 **16.9분** / 26 epoch에서 조기종료
+- [x] `models/best.pt` 확보 (16.4MB, Drive `MyDrive/fishlog/models/`)
+- [x] 학습 곡선 확인 → **과적합 확진**
+- [ ] (선택) `convnext_tiny` 비교 — Phase 4 진단 후 판단
 - 상세 → [training.md](training.md)
+
+#### 베이스라인 결과 (val 1,048장)
+
+| 지표 | 결과 | 합격 기준 | 판정 |
+|---|---|---|---|
+| val Top-3 | **0.8721** (E18) | 0.90 | ❌ -2.8pp |
+| val Top-1 | 0.7538 (E25) | 0.75 | ✅ |
+
+**과적합.** train_top1 0.9895 vs val_top1 0.7538 → 간격 24pp.
+epoch 10 이후 train loss만 계속 떨어지고 val loss는 1.42에서 평평 → 조기종료(patience 8) 정당.
+**더 오래 돌려도 오르지 않는다.** epoch/LR 튜닝이 아니라 데이터 쪽 문제다.
+
+원인 후보 3가지는 현재 데이터로 구분 불가 → Phase 4 진단이 먼저다:
+1. 데이터 부족 (종당 250장은 25클래스 구분에 빠듯)
+2. **라벨 오염** (웹 크롤링분에 어시장·조리 사진 혼입)
+3. 혼동 쌍 6그룹의 본질적 난이도
 
 ### Phase 4 — 평가 ⬜ (1일)
 - [ ] `src/evaluate.py` 작성 (미작성)

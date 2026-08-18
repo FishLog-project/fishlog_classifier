@@ -1,6 +1,20 @@
 # Phase 4 — 평가
 
-구현 예정: `src/evaluate.py` (미작성)
+`src/evaluate.py` (2026-08-18 작성)
+
+```bash
+python -m src.evaluate                      # models/best.pt, test셋
+python -m src.evaluate --split val          # 임계값 튜닝은 val에서 (test는 최종 1회)
+python -m src.evaluate --no-worst-cases     # 이미지 복사 생략(빠름)
+```
+
+체크포인트에 박힌 클래스 순서가 현재 `config.SPECIES` 와 다르면 **즉시 중단**한다
+(라벨이 어긋난 채로 지표만 그럴듯하게 나오는 게 최악이라).
+
+**Colab에서는 한글 폰트를 먼저 깔 것** — 없으면 그래프 라벨이 인덱스 숫자로 대체된다:
+```bash
+!apt-get install -y fonts-nanum && rm -rf ~/.cache/matplotlib   # 설치 후 런타임 재시작
+```
 
 ## 합격 기준 (MVP)
 
