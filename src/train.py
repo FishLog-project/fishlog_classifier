@@ -26,6 +26,8 @@ from pathlib import Path
 
 import numpy as np
 import timm
+from timm.data import Mixup
+from timm.loss import SoftTargetCrossEntropy
 import torch
 import torch.nn as nn
 from torch.amp import GradScaler, autocast
@@ -134,7 +136,14 @@ def topk_correct(logits: torch.Tensor, targets: torch.Tensor, ks=(1, 3)) -> dict
 # ---------------------------------------------------------------------------
 def run_epoch(model, loader, criterion, device, *, optimizer=None, scaler=None,
               cfg: TrainConfig, desc: str, max_batches: int | None = None,
-              frozen: bool = False) -> dict[str, float]:
+              frozen: bool = False, mixup_fn=None) -> dict[str, float]:
+    """한 epoch 실행.
+
+    mixup_fn 이 주어지면 학습 배치의 이미지/라벨을 섞는다. 이때 loss는 섞인 soft
+    타깃에 대해 계산하지만, **정확도는 원본 라벨 y 로 잰다** — 섞인 라벨에 대한
+    정확도는 해석이 불가능하고, 우리가 보려는 건 과적합 간격이기 때문이다.
+    (그래서 mixup을 켜면 train_top1 이 이전보다 낮게 나오는 게 정상이다.)
+    """
     train_mode = optimizer is not None
     model.train(train_mode)
     if train_mode and frozen:
@@ -151,10 +160,14 @@ def run_epoch(model, loader, criterion, device, *, optimizer=None, scaler=None,
         x = x.to(device, non_blocking=True)
         y = y.to(device, non_blocking=True)
 
+        y_loss = y
+        if mixup_fn is not None:
+            x, y_loss = mixup_fn(x, y)   # y_loss는 soft 타깃, y는 정확도 측정용 원본
+
         with torch.set_grad_enabled(train_mode):
             with autocast(device_type=device.type, enabled=use_amp):
                 logits = model(x)
-                loss = criterion(logits, y)
+                loss = criterion(logits, y_loss)
 
             if train_mode:
                 optimizer.zero_grad(set_to_none=True)
@@ -235,6 +248,11 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--head-lr", type=float, default=d.head_lr, help="stage 1 LR")
     ap.add_argument("--weight-decay", type=float, default=d.weight_decay)
     ap.add_argument("--label-smoothing", type=float, default=d.label_smoothing)
+    ap.add_argument("--mixup-alpha", type=float, default=d.mixup_alpha)
+    ap.add_argument("--cutmix-alpha", type=float, default=d.cutmix_alpha)
+    ap.add_argument("--mixup-prob", type=float, default=d.mixup_prob,
+                    help="배치 단위 mixup/cutmix 적용 확률. 0이면 끈다")
+    ap.add_argument("--no-mixup", action="store_true", help="mixup/cutmix 완전히 끄기")
     ap.add_argument("--num-workers", type=int, default=d.num_workers)
     ap.add_argument("--patience", type=int, default=d.patience)
     ap.add_argument("--monitor", choices=["top1", "top3"], default=d.monitor)
@@ -264,6 +282,9 @@ def main() -> None:
         head_lr=args.head_lr,
         weight_decay=args.weight_decay,
         label_smoothing=args.label_smoothing,
+        mixup_alpha=args.mixup_alpha,
+        cutmix_alpha=args.cutmix_alpha,
+        mixup_prob=0.0 if args.no_mixup else args.mixup_prob,
         num_workers=args.num_workers,
         patience=args.patience,
         monitor=args.monitor,
@@ -302,6 +323,27 @@ def main() -> None:
         weights = compute_class_weights(train_ds.targets).to(device)
         print("[loss] 클래스 가중치 적용")
     criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=cfg.label_smoothing)
+
+    # mixup을 쓰면 타깃이 soft가 되므로 손실 함수도 바뀐다. 검증은 항상 원래 CE로 잰다
+    # (mixup 손실과 CE 손실은 스케일이 달라 섞어서 비교하면 곡선을 잘못 읽는다).
+    mixup_fn = None
+    train_criterion = criterion
+    if cfg.mixup_prob > 0 and (cfg.mixup_alpha > 0 or cfg.cutmix_alpha > 0):
+        if args.class_weights:
+            # SoftTargetCrossEntropy는 클래스 가중치를 못 받는다. 둘 중 하나만 쓴다.
+            print("[warn] --class-weights 는 mixup과 함께 쓸 수 없다 → mixup을 끈다")
+        else:
+            mixup_fn = Mixup(
+                mixup_alpha=cfg.mixup_alpha,
+                cutmix_alpha=cfg.cutmix_alpha,
+                prob=cfg.mixup_prob,
+                label_smoothing=cfg.label_smoothing,  # Mixup이 직접 처리한다
+                num_classes=NUM_CLASSES,
+            )
+            train_criterion = SoftTargetCrossEntropy()
+            print(f"[loss] mixup α={cfg.mixup_alpha} / cutmix α={cfg.cutmix_alpha} "
+                  f"/ p={cfg.mixup_prob} → train_top1은 원본 라벨 기준(낮게 나온다)")
+
     scaler = GradScaler(device.type, enabled=cfg.amp and device.type == "cuda")
 
     start_epoch, best = 0, 0.0
@@ -332,9 +374,9 @@ def main() -> None:
                   f"학습 파라미터 {trainable / 1e6:.2f}M / {total_p / 1e6:.2f}M ===")
 
         lr_now = optimizer.param_groups[0]["lr"]
-        tr = run_epoch(model, train_loader, criterion, device, optimizer=optimizer,
+        tr = run_epoch(model, train_loader, train_criterion, device, optimizer=optimizer,
                        scaler=scaler, cfg=cfg, desc=f"E{epoch + 1}/{cfg.epochs} train",
-                       max_batches=max_batches, frozen=(stage == 1))
+                       max_batches=max_batches, frozen=(stage == 1), mixup_fn=mixup_fn)
         va = run_epoch(model, val_loader, criterion, device, cfg=cfg,
                        desc=f"E{epoch + 1}/{cfg.epochs}  val", max_batches=max_batches)
         scheduler.step()

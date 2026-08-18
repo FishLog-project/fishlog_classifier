@@ -82,3 +82,29 @@ python -m src.train --class-weights          # 샘플러 대신 손실 가중치
 yolo classify train model=yolov8n-cls.pt data=data/splits epochs=30 imgsz=224
 ```
 데이터 폴더 구조가 이미 호환된다. 단 ONNX export·서빙 코드는 별도 경로가 되므로, 베이스라인 확인용으로만 쓰고 본선은 timm 경로로 간다.
+
+## 정규화 (mixup / cutmix) — 2026-08-18 추가
+
+1차 학습에서 과적합이 확인됐다: `train_top1 0.9895` vs `val_top1 0.7538` (간격 24pp).
+4,904장으로 404만 파라미터를 학습하니 일반화보다 암기가 쉬웠다.
+
+mixup(두 사진의 픽셀 가중합)과 cutmix(사각형 패치 교체)는 라벨까지 함께 섞어
+"이 사진 = 이 정답"이라는 암기 경로를 물리적으로 막는다. 기본값으로 켜져 있다:
+
+| 인자 | 기본값 |
+|---|---|
+| `--mixup-alpha` | 0.2 |
+| `--cutmix-alpha` | 1.0 |
+| `--mixup-prob` | 0.5 (배치 단위 적용 확률) |
+| `--no-mixup` | 완전히 끄기 (이전 동작 재현) |
+
+**읽을 때 주의할 점 2가지:**
+
+1. **`train_top1`이 이전보다 낮게 나오는 게 정상이다.** 손실은 섞인 soft 타깃으로
+   계산하지만 정확도는 원본 라벨로 재기 때문이다. 봐야 할 것은 절대값이 아니라
+   **train과 val의 간격**이 좁아졌는지다.
+2. **`train_loss`를 이전 실험과 직접 비교하면 안 된다.** SoftTargetCrossEntropy와
+   CrossEntropy는 스케일이 다르다. `val_loss`/`val_top3`만 비교 대상이다.
+
+`--class-weights` 와는 함께 쓸 수 없다(SoftTargetCrossEntropy가 클래스 가중치를
+받지 못한다). 동시에 주면 mixup이 꺼지고 경고가 나온다.

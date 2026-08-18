@@ -288,6 +288,13 @@ class TrainConfig:
     label_smoothing: float = 0.1
     grad_clip: float = 1.0
 
+    # 정규화 — 과적합 대응 (2026-08-18 진단: train_top1 0.99 vs val 0.75, 간격 24pp)
+    # 두 사진과 라벨을 섞어 학습시켜 "사진 자체를 외우는" 경로를 물리적으로 막는다.
+    # 0으로 두면 해당 기법이 꺼진다. mixup_prob=0 이면 둘 다 끈다(= 이전 동작).
+    mixup_alpha: float = 0.2            # 픽셀 가중합 (Beta 분포 파라미터)
+    cutmix_alpha: float = 1.0           # 사각형 패치 교체
+    mixup_prob: float = 0.5             # 배치 단위 적용 확률
+
     # 데이터 로더
     batch_size: int = 32                # VRAM 2GB면 16 이하 권장
     num_workers: int = 4                # Windows에서 문제 생기면 0
