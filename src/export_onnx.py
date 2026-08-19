@@ -42,6 +42,30 @@ OPSET = 18
 TOLERANCE = 1e-4
 
 
+def check_deps() -> None:
+    """무거운 변환을 시작하기 **전에** 필요한 패키지를 확인한다.
+
+    export는 성공했는데 그 뒤 검증 단계에서 ModuleNotFoundError로 죽으면,
+    **검증되지 않은 .onnx 파일만 남고 labels.json 기록도 건너뛴다.**
+    파일이 있으니 다 된 것처럼 보이는 게 위험하다 → 시작 전에 막는다.
+    """
+    missing = []
+    for mod, why in (("onnxruntime", "변환 결과 검증"),
+                     ("onnx", "opset 확인"),
+                     ("onnxscript", "torch 2.9+ dynamo 익스포터")):
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append(f"{mod} ({why})")
+    if missing:
+        names = " ".join(m.split()[0] for m in missing)
+        raise SystemExit(
+            "[FAIL] 필요한 패키지가 없다:\n  - "
+            + "\n  - ".join(missing)
+            + f"\n  → pip install {names}"
+        )
+
+
 def check_labels(ckpt_classes: list[str] | None) -> None:
     """체크포인트 · config · labels.json 세 곳의 클래스 순서를 대조한다.
 
@@ -204,6 +228,8 @@ def main() -> None:
     ap.add_argument("--verify-only", action="store_true", help="변환 없이 기존 onnx만 검증")
     ap.add_argument("--skip-real", action="store_true", help="실이미지 검증 생략")
     args = ap.parse_args()
+
+    check_deps()
 
     device = torch.device("cpu")   # 변환은 항상 CPU에서 (서빙 환경과 맞춘다)
     model, cfg = load_checkpoint(args.ckpt, device)

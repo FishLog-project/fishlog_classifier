@@ -7,6 +7,11 @@ python -m src.export_onnx                    # models/best.pt → server/model.o
 python -m src.export_onnx --verify-only      # 기존 onnx만 검증
 ```
 
+Colab에서는 `onnxscript`·`onnxruntime` 이 기본 설치돼 있지 않다:
+```python
+!pip install -q onnxscript onnxruntime
+```
+
 ### torch 2.13 dynamo 익스포터에서 걸린 함정 2개 (2026-08-18 실측)
 
 **1. `external_data=True` 가 기본값이다.**
