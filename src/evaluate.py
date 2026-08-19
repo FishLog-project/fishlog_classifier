@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import shutil
 from collections import defaultdict
@@ -294,6 +295,30 @@ def dump_worst_cases(ds: FishDataset, probs: np.ndarray, y: np.ndarray,
     return rows
 
 
+def dump_predictions(ds: FishDataset, probs: np.ndarray, y: np.ndarray, out: Path) -> None:
+    """이미지 1장 = 1행. 다른 신호(예: 사진 품질 점수)와 대조하려면 이 파일이 필요하다.
+
+    `scripts/quality_audit.py` 가 이 파일을 읽어 "품질 점수가 낮은 사진이 정말 더
+    많이 틀리는가"를 검증한다. 눈짐작으로 임계값을 정하지 않기 위한 근거다.
+    """
+    top3 = np.argsort(-probs, axis=1)[:, :3]
+    pred = probs.argmax(axis=1)
+    with out.open("w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["path", "filename", "source", "true", "pred",
+                    "confidence", "correct_top1", "correct_top3"])
+        for i, (path, _) in enumerate(ds.samples):
+            # 파일명 접두사가 출처다: inat_* = iNaturalist, web_* = 검색 크롤링
+            source = "inat" if path.name.startswith("inat_") else                      ("web" if path.name.startswith("web_") else "other")
+            w.writerow([
+                str(path), path.name, source,
+                CLASSES[y[i]], CLASSES[pred[i]],
+                round(float(probs[i, pred[i]]), 4),
+                int(pred[i] == y[i]),
+                int((top3[i] == y[i]).any()),
+            ])
+
+
 def plot_threshold_curve(probs: np.ndarray, y: np.ndarray, out: Path,
                          has_font: bool) -> list[dict]:
     """`uncertain` 임계값 후보별 (거부율, 남은 것의 정확도) 트레이드오프.
@@ -433,6 +458,7 @@ def main() -> None:
         metrics["worst_cases"] = dump_worst_cases(
             ds, probs, y, args.out_dir / "worst_cases", args.worst_n)
 
+    dump_predictions(ds, probs, y, args.out_dir / "predictions.csv")
     np.save(args.out_dir / "confusion_matrix.npy", cm)
     (args.out_dir / "metrics.json").write_text(
         json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -440,7 +466,7 @@ def main() -> None:
     print_summary(metrics, per_class)
     print(f"\n[out] {args.out_dir}")
     for f in ("metrics.json", "confusion_matrix.png", "confusable_report.md",
-              "threshold_curve.png"):
+              "threshold_curve.png", "predictions.csv"):
         print(f"       {f}")
     if not args.no_worst_cases:
         print(f"       worst_cases/ ({args.worst_n}장)")
