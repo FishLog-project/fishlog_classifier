@@ -1,6 +1,24 @@
 # Phase 5·6 — ONNX Export · FastAPI 서버 · Docker
 
-구현 예정: `src/export_onnx.py`, `server/inference.py`, `server/main.py`, `Dockerfile` (모두 미작성)
+`src/export_onnx.py` (2026-08-18 작성) / `server/inference.py`, `server/main.py`, `Dockerfile` 미작성
+
+```bash
+python -m src.export_onnx                    # models/best.pt → server/model.onnx
+python -m src.export_onnx --verify-only      # 기존 onnx만 검증
+```
+
+### torch 2.13 dynamo 익스포터에서 걸린 함정 2개 (2026-08-18 실측)
+
+**1. `external_data=True` 가 기본값이다.**
+가중치가 `model.onnx.data` 로 따로 빠져 `model.onnx` 는 0.5MB만 남는다.
+Docker 이미지에 `.onnx` 만 복사하면 **로드 시점에 터진다.**
+→ `external_data=False` 로 단일 파일(15.8MB) 고정. 크기가 5MB 미만이면 실패 처리한다.
+
+**2. `opset_version=13` 을 요청해도 18로 나온다.**
+dynamo 익스포터는 18로 뽑은 뒤 13으로 낮추려 하는데, onnx version_converter가
+`axes_input_to_attribute` 에서 실패한다. 그런데 **에러를 찍고도 18로 그냥 진행**한다 —
+요청과 결과가 다른데 성공한 것처럼 보인다.
+→ opset 18을 그대로 쓰고(onnxruntime>=1.19가 지원), export 후 **실제 opset을 검증**한다.
 
 ## Phase 5 — ONNX 변환
 

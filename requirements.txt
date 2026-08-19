@@ -29,6 +29,8 @@ uvicorn[standard]>=0.30
 python-multipart>=0.0.9
 onnx>=1.16
 onnxruntime>=1.19
+# torch 2.9+ 의 dynamo ONNX 익스포터가 요구한다. 없으면 export가 ModuleNotFoundError로 죽는다.
+onnxscript>=0.7
 
 # --- Phase 2 데이터 수집 ---
 requests>=2.32

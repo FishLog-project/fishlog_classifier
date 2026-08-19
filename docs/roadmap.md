@@ -4,52 +4,38 @@
 
 ## 현재 위치 (2026-08-18 기준)
 
-**Phase 2 완료 → Phase 3(학습) 착수.** 데이터 6,999장 분할 완료 (train 4,904 / val 1,048 / test 1,047).
+**Phase 3·4 완료 → Phase 5(ONNX) 착수.**
+최종 모델 **test Top-3 90.66% / Top-1 80.97%** — 합격 기준 통과.
 
-- 있는 것: `src/config.py`(25클래스), `src/dataset.py`, `src/train.py`,
-  `scripts/*` 8종(수집 3 + 정제 3 + 검수 보조 2), **분할된 데이터 6,999장**, `server/labels.json`
-- 없는 것: `src/evaluate.py`, `src/export_onnx.py`, `server/main.py`·`inference.py`, `Dockerfile`
-- 확정: 25클래스(어종 24 + `기타`) / MVP 종당 250장 / 학습은 Colab T4 ([decisions.md](decisions.md) A-10~12)
+- 있는 것: `src/{config,dataset,train,evaluate}.py`,
+  `scripts/*` 11종(수집 4 + 정제 3 + 검수 보조 2 + 패키징 1 + 품질채점 1),
+  **데이터 7,456장**, `server/labels.json`, 학습된 모델
+- **없는 것: `src/export_onnx.py`, `server/main.py`·`inference.py`, `Dockerfile`**
+- 모델: `efficientnet_b0` / **384px** / 30 epoch / mixup·품질필터 없음
+  → Drive `MyDrive/fishlog/models/final_384_기타보강.pt` (16.4MB)
+- 확정: 25클래스(어종 24 + `기타`) / 학습은 Colab T4 ([decisions.md](decisions.md) A-10~12)
 - 미결정: 공모전 마감일, 배포처, 24종 밖 어종 앱 UX ([decisions.md](decisions.md) B섹션)
 
-### 데이터 현황 (2026-08-18 실측)
+### 데이터 현황 (2026-08-18)
 
 | | 장수 |
 |---|---|
-| train / val / test | 4,904 / 1,048 / 1,047 (합 **6,999**) |
-| 소스 | iNaturalist 약 4,900 + 검색(DDG·Bing) 약 2,100 |
-| 수집 원본 `data/raw` | 9,005 → 정제 후 `data/clean` 6,999 |
-| 격리분 | 1,901장 (자동 필터 `data/reject` 1,221 + 사람 검수 `data/review` 680) + 중복 제거 약 105 |
+| train / val / test | 5,225 / 1,117 / 1,114 (합 **7,456**) |
+| 소스 | iNaturalist 약 5,200 + 검색(DDG·Bing) 약 2,300 |
+| `기타` | 706장 (24종밖 어종 380 + 비물고기 330), **출처별 층화 분할** |
 
-**목표 미달 3종**: 볼락 146, 삼치 151, 전갱이 189 (다음으로 적은 종은 동자개 216).
-iNat 관측 수 자체가 적고(볼락 39건), 검색 결과는 어시장·조리 사진이 대부분이라 검수에서 60~80% 탈락했다.
-→ A-11 방침대로 **이대로 1차 학습**하고, 평가에서 이 3종의 recall을 보고 보강 여부를 정한다.
+### ▶ 다음에 할 일 (Phase 5 → 6)
 
-### ▶ 다음에 할 일 (Phase 3)
+모델은 합격선을 넘었다. **지금 가장 큰 미완성은 서빙 쪽이다** — 모델이 좋아도
+앱에서 못 쓰면 의미가 없다. 남은 성능 개선은 아래 "알려진 한계" 참조(우선순위 낮음).
 
-Phase 3 사전 준비는 2026-08-18에 끝났다:
-- [x] `python -m src.dataset --check` — 4,904 / 1,048 / 1,047 확인
-- [x] `python -m src.dataset --preview` — `reports/aug_preview.jpg` 육안 확인 (증강 정상)
-- [x] `python -m scripts.package_data` — `data/splits.zip` (1,067 MB, 한글 경로 UTF-8 검증 통과)
-- [x] `python -m src.train --smoke` — 2단계 파인튜닝·체크포인트 저장까지 통과 (스모크 산출물은 삭제함)
+1. `src/export_onnx.py` 작성 → `.pt` vs `.onnx` 수치 일치 검증 (max abs diff < 1e-4)
+2. `server/inference.py` · `server/main.py` — **전처리를 학습과 정확히 일치시킬 것**
+   (384px, `SmallestMaxSize(438)` → `CenterCrop(384)`, ImageNet 정규화)
+3. `uncertain` 임계값 튜닝 — `reports/threshold_curve.png` 기준, val에서
+4. `Dockerfile` → 배포
 
-1차 학습도 끝났다 (val_top3 0.8721, 아래 "베이스라인 결과" 참조).
-
-### ▶ 다음에 할 일 (Phase 4 — 진단)
-
-베이스라인이 합격선에 -2.8pp 미달이고 **과적합이 확실**하다. 튜닝을 더 하기 전에
-"어디서 틀리는가"를 먼저 봐야 한다 ([evaluation.md](evaluation.md) "목표 미달 시 대응 순서" 1번).
-
-1. `src/evaluate.py` 작성 → test 1,047장으로 산출물 5종 ([evaluation.md](evaluation.md) "산출물")
-2. **종별 recall** — 볼락·삼치·전갱이·동자개(데이터 부족 4종)가 무너졌는지 확인
-3. **혼동행렬** — 6그룹이 *대칭* 혼동이면 데이터 부족, *한쪽 쏠림*이면 라벨 오염
-4. **`worst_cases/`** — 확신했는데 틀린 50장. 어시장·조리 사진이 나오면 라벨 오염 확진
-5. 진단 결과에 따라 분기:
-   - 라벨 오염 → 검수 2차 후 재학습
-   - 데이터 부족 → 해당 종 보강 수집
-   - 둘 다 아니면 → 정규화 강화(mixup/cutmix) 또는 `convnext_tiny`
-
-상세 → [training.md](training.md) / [data-pipeline.md](data-pipeline.md)
+상세 → [serving.md](serving.md) / [evaluation.md](evaluation.md)
 
 ---
 
@@ -80,7 +66,7 @@ Phase 3 사전 준비는 2026-08-18에 끝났다:
 - [x] `기타` 클래스 250장 (4버킷 배분)
 - 상세 → [data-pipeline.md](data-pipeline.md)
 
-### Phase 3 — 학습 🔶 (베이스라인 확보, 2026-08-18)
+### Phase 3 — 학습 ✅ (완료, 2026-08-18)
 - [x] `python -m src.dataset --preview` 로 증강 결과 눈으로 확인
 - [x] 베이스라인: `efficientnet_b0`, 224px, T4에서 **16.9분** / 26 epoch에서 조기종료
 - [x] `models/best.pt` 확보 (16.4MB, Drive `MyDrive/fishlog/models/`)
@@ -104,14 +90,14 @@ epoch 10 이후 train loss만 계속 떨어지고 val loss는 1.42에서 평평 
 2. **라벨 오염** (웹 크롤링분에 어시장·조리 사진 혼입)
 3. 혼동 쌍 6그룹의 본질적 난이도
 
-### Phase 4 — 평가 ⬜ (1일)
-- [ ] `src/evaluate.py` 작성 (미작성)
-- [ ] test셋 Top-1 / Top-3, per-class precision·recall
-- [ ] 혼동행렬 → 혼동 그룹 6쌍 집중 점검
-- [ ] 목표 미달 종 데이터 보강 후 재학습
+### Phase 4 — 평가 ✅ (완료, 2026-08-18)
+- [x] `src/evaluate.py` 작성
+- [x] test셋 Top-1 / Top-3, per-class precision·recall
+- [x] 혼동행렬 → 혼동 그룹 6쌍 집중 점검 (6쌍은 이미 해결됨을 확인)
+- [x] `기타` 249 → 706장 보강 후 재학습 → recall 43.2% → 86.8%(val)
 - 상세 → [evaluation.md](evaluation.md)
 
-### Phase 5 — ONNX Export ⬜ (0.5일)
+### Phase 5 — ONNX Export 🔶 (진행 중)
 - [ ] `src/export_onnx.py` 작성 (미작성)
 - [ ] `.pt` vs `.onnx` 출력 수치 일치 검증 (max abs diff < 1e-4)
 - 상세 → [serving.md](serving.md)
