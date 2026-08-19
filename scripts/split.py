@@ -54,12 +54,50 @@ def group_key(species: str, path: Path, dup: dict[tuple[str, str], str]) -> str:
     return f"f{path.name}"                          # 단독
 
 
+def source_stratum(path: Path) -> str:
+    """`기타` 층화용 구분. 파일명 접두사가 곧 출처이자 난이도다.
+
+    `기타`는 성격이 아주 다른 두 부류가 섞여 있다:
+      - `inat_*` : 24종 밖 **어종**(학꽁치·붕장어·가오리…). 진짜 물고기라 24종과
+                   헷갈리기 쉬워 **어렵다**.
+      - `web_*`  : 비물고기(회 접시·낚싯대·고양이…). 구분이 **쉽다**.
+
+    무작위로 나누면 split마다 이 비율이 크게 튄다 — 2026-08-18 실측으로
+    train 34% / val 64% / test 42% 였고, 그 결과 `기타` recall이 val 43.2% vs
+    test 71.05% 로 28pp 벌어졌다. **모델이 아니라 시험지 난이도가 달랐던 것이다.**
+    """
+    return "fish" if path.name.startswith("inat_") else "nonfish"
+
+
+def _fill(groups: dict[str, list[Path]], keys: list[str], n_total: int,
+          ratios: tuple[float, float, float],
+          out: dict[str, list[Path]]) -> None:
+    """셔플된 그룹들을 비율대로 out에 채운다(그룹은 쪼개지 않는다)."""
+    quota = {
+        "train": round(n_total * ratios[0]),
+        "val": round(n_total * ratios[1]),
+    }
+    quota["test"] = n_total - quota["train"] - quota["val"]
+
+    filled = {s: 0 for s in ("train", "val", "test")}
+    for k in keys:
+        # 아직 할당량이 남은 split 중 '남은 비율'이 가장 큰 곳에 그룹 전체를 넣는다
+        target = max(("train", "val", "test"), key=lambda s: quota[s] - filled[s])
+        out[target].extend(groups[k])
+        filled[target] += len(groups[k])
+
+
 def split_species(name: str, ratios: tuple[float, float, float], rng: random.Random,
-                  dup: dict[tuple[str, str], str]) -> dict[str, list[Path]]:
+                  dup: dict[tuple[str, str], str],
+                  stratify: bool = False) -> dict[str, list[Path]]:
     """그룹 단위로 셔플해 순서대로 채운다.
 
     그룹 크기가 들쭉날쭉하므로 '목표 개수에 가장 못 미친 split'에 큰 그룹부터 넣는 식이
     아니라, 셔플 후 누적 비율로 배정한다 — 종별 300장 규모에서 충분히 균등하고 재현 쉽다.
+
+    stratify=True 면 `source_stratum` 별로 따로 배정한 뒤 합친다. 그러면 train/val/test의
+    구성비가 같아져 split 간 지표를 비교할 수 있다. `기타`처럼 성격이 다른 부류가 섞인
+    클래스에만 쓴다 — 어종 24종은 출처가 섞여도 난이도 차이가 이만큼 크지 않다.
     """
     src = config.CLEAN_DIR / name
     files = [p for p in sorted(src.iterdir())
@@ -69,22 +107,24 @@ def split_species(name: str, ratios: tuple[float, float, float], rng: random.Ran
     for p in files:
         groups[group_key(name, p, dup)].append(p)
 
-    keys = list(groups)
-    rng.shuffle(keys)
-
-    n_total = len(files)
-    quota = {
-        "train": round(n_total * ratios[0]),
-        "val": round(n_total * ratios[1]),
-    }
-    quota["test"] = n_total - quota["train"] - quota["val"]
-
     out: dict[str, list[Path]] = {"train": [], "val": [], "test": []}
-    for k in keys:
-        # 아직 할당량이 남은 split 중 '남은 비율'이 가장 큰 곳에 그룹 전체를 넣는다
-        target = max(("train", "val", "test"),
-                     key=lambda s: quota[s] - len(out[s]))
-        out[target].extend(groups[k])
+
+    if not stratify:
+        keys = list(groups)
+        rng.shuffle(keys)
+        _fill(groups, keys, len(files), ratios, out)
+        return out
+
+    # 층별로 독립 배정 — 한 그룹의 파일은 출처가 같으므로 그룹이 층을 넘나들지 않는다
+    by_stratum: dict[str, list[str]] = defaultdict(list)
+    for k, paths in groups.items():
+        by_stratum[source_stratum(paths[0])].append(k)
+
+    for stratum in sorted(by_stratum):
+        keys = by_stratum[stratum]
+        rng.shuffle(keys)
+        n = sum(len(groups[k]) for k in keys)
+        _fill(groups, keys, n, ratios, out)
     return out
 
 
@@ -95,6 +135,8 @@ def main() -> None:
                     metavar=("TRAIN", "VAL", "TEST"))
     ap.add_argument("--seed", type=int, default=42, help="고정 시드(기본 42, 재현성)")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--no-stratify-other", action="store_true",
+                    help="`기타`의 출처별 층화 분할을 끈다(2026-08-18 이전 동작 재현용)")
     args = ap.parse_args()
 
     ratios = tuple(args.ratios)
@@ -116,7 +158,10 @@ def main() -> None:
 
     for name in targets:
         rng = random.Random(f"{args.seed}:{name}")  # 종별 독립 시드 → 종을 추가해도 기존 배정 유지
-        assign = split_species(name, ratios, rng, dup)
+        # `기타`만 층화한다 — 24종 밖 어종(어려움)과 비물고기(쉬움)의 비율이
+        # split마다 튀면 지표를 split 간에 비교할 수 없다(source_stratum 참조).
+        stratify = (name == config.OTHER_CLASS) and not args.no_stratify_other
+        assign = split_species(name, ratios, rng, dup, stratify=stratify)
         n = sum(len(v) for v in assign.values())
         n_groups = len({group_key(name, p, dup) for v in assign.values() for p in v})
         print(f"{name:<8} {len(assign['train']):>7} {len(assign['val']):>6} "
