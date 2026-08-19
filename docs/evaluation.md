@@ -6,6 +6,7 @@
 python -m src.evaluate                      # models/best.pt, test셋
 python -m src.evaluate --split val          # 임계값 튜닝은 val에서 (test는 최종 1회)
 python -m src.evaluate --no-worst-cases     # 이미지 복사 생략(빠름)
+python -m src.evaluate --tta                # 좌우반전 TTA (추론 2배, 재학습 불필요)
 ```
 
 체크포인트에 박힌 클래스 순서가 현재 `config.SPECIES` 와 다르면 **즉시 중단**한다

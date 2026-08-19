@@ -118,18 +118,31 @@ def load_checkpoint(path: Path, device: torch.device) -> tuple[torch.nn.Module, 
 
 @torch.no_grad()
 def predict_all(model, ds: FishDataset, cfg: TrainConfig, device: torch.device,
-                batch_size: int = 64, num_workers: int = 2) -> tuple[np.ndarray, np.ndarray]:
-    """전체 데이터셋에 대한 softmax 확률과 정답 라벨을 반환한다."""
+                batch_size: int = 64, num_workers: int = 2,
+                tta: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    """전체 데이터셋에 대한 softmax 확률과 정답 라벨을 반환한다.
+
+    tta=True 면 원본과 좌우반전본의 확률을 평균낸다(Test-Time Augmentation).
+    물고기 사진은 머리가 왼쪽이든 오른쪽이든 같은 종이므로 좌우반전은 안전한
+    변형이다. 두 번 보고 평균내면 한쪽 방향에서만 우연히 흔들린 예측이 완화된다.
+    비용은 추론 2배 — 학습은 필요 없고, 이미 있는 모델에 그대로 적용된다.
+
+    상하반전이나 회전은 쓰지 않는다. 학습 증강이 ±15도까지만 다뤘으므로
+    그 밖의 변형은 오히려 분포를 벗어난다.
+    """
     loader = torch.utils.data.DataLoader(
         ds, batch_size=batch_size, shuffle=False, num_workers=num_workers,
         pin_memory=torch.cuda.is_available(),
     )
     probs, targets = [], []
-    for x, y in tqdm(loader, desc="predict", leave=False):
+    for x, y in tqdm(loader, desc="predict(TTA)" if tta else "predict", leave=False):
         x = x.to(device, non_blocking=True)
         with torch.autocast(device_type=device.type, enabled=device.type == "cuda"):
-            logits = model(x)
-        probs.append(F.softmax(logits.float(), dim=1).cpu().numpy())
+            p = F.softmax(model(x).float(), dim=1)
+            if tta:
+                # dim=3 은 (B, C, H, W)의 W — 좌우반전
+                p = (p + F.softmax(model(torch.flip(x, dims=[3])).float(), dim=1)) / 2
+        probs.append(p.cpu().numpy())
         targets.append(y.numpy())
     return np.concatenate(probs), np.concatenate(targets)
 
@@ -403,6 +416,8 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--worst-n", type=int, default=50)
     ap.add_argument("--no-worst-cases", action="store_true",
                     help="worst_cases 이미지 복사 생략")
+    ap.add_argument("--tta", action="store_true",
+                    help="좌우반전 TTA (추론 2배 비용, 재학습 불필요)")
     ap.add_argument("--out-dir", type=Path, default=config.REPORTS_DIR)
     return ap.parse_args()
 
@@ -418,9 +433,11 @@ def main() -> None:
     ds = FishDataset(root, transform=build_transforms(args.split, cfg))
     if len(ds) == 0:
         raise SystemExit(f"[FAIL] {root} 에 이미지가 없다.")
-    print(f"[data] {args.split}셋 {len(ds):,}장")
+    print(f"[data] {args.split}셋 {len(ds):,}장"
+          + ("  | TTA: 좌우반전 평균" if args.tta else ""))
 
-    probs, y = predict_all(model, ds, cfg, device, args.batch_size, args.num_workers)
+    probs, y = predict_all(model, ds, cfg, device, args.batch_size, args.num_workers,
+                           tta=args.tta)
     pred = probs.argmax(axis=1)
 
     per_class = per_class_metrics(pred, y, probs)
@@ -436,6 +453,7 @@ def main() -> None:
         "checkpoint": str(args.ckpt),
         "backbone": cfg.backbone,
         "img_size": cfg.img_size,
+        "tta": bool(args.tta),
         "overall": {
             "top1": round(topk_accuracy(probs, y, 1), 4),
             "top3": round(topk_accuracy(probs, y, 3), 4),
