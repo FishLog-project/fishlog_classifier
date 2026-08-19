@@ -295,6 +295,11 @@ class TrainConfig:
     cutmix_alpha: float = 1.0           # 사각형 패치 교체
     mixup_prob: float = 0.5             # 배치 단위 적용 확률
 
+    # 사진 품질 필터 (2026-08-18 검증: 하위 20% Top-3 77% vs 상위 20% 93~96%)
+    # `scripts/score_quality.py` 의 fish_prob 미만인 사진을 **학습셋에서만** 뺀다.
+    # None이면 끈다. val/test에는 절대 걸지 않는다 — 시험만 쉬워진다.
+    min_fish_prob: float | None = None
+
     # 데이터 로더
     batch_size: int = 32                # VRAM 2GB면 16 이하 권장
     num_workers: int = 4                # Windows에서 문제 생기면 0

@@ -6,6 +6,8 @@ data/reject/
 data/review/
 # Colab 업로드용 패키징 산출물
 data/*.zip
+# 품질 채점 캐시 — score_quality.py로 언제든 재생성된다
+data/quality_scores.csv
 # dedup이 매번 다시 만드는 파생 파일 (licenses.csv·rejected.txt는 커밋한다 — 출처 근거/검수 결과)
 data/dup_groups.csv
 data/clean_manifest.csv

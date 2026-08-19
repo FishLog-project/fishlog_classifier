@@ -253,6 +253,9 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--mixup-prob", type=float, default=d.mixup_prob,
                     help="배치 단위 mixup/cutmix 적용 확률. 0이면 끈다")
     ap.add_argument("--no-mixup", action="store_true", help="mixup/cutmix 완전히 끄기")
+    ap.add_argument("--min-fish-prob", type=float, default=d.min_fish_prob,
+                    help="이 품질 점수 미만인 사진을 학습셋에서 제외 "
+                         "(scripts.score_quality 선행 필요). val/test는 그대로 둔다")
     ap.add_argument("--num-workers", type=int, default=d.num_workers)
     ap.add_argument("--patience", type=int, default=d.patience)
     ap.add_argument("--monitor", choices=["top1", "top3"], default=d.monitor)
@@ -285,6 +288,7 @@ def main() -> None:
         mixup_alpha=args.mixup_alpha,
         cutmix_alpha=args.cutmix_alpha,
         mixup_prob=0.0 if args.no_mixup else args.mixup_prob,
+        min_fish_prob=args.min_fish_prob,
         num_workers=args.num_workers,
         patience=args.patience,
         monitor=args.monitor,

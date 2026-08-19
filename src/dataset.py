@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import random
 from collections import Counter
 from pathlib import Path
@@ -60,22 +61,59 @@ def imwrite_unicode(path: Path, img_rgb: np.ndarray) -> bool:
     return True
 
 
-def scan_split(root: Path) -> list[tuple[Path, int]]:
-    """`root/<종명>/*.jpg` 를 훑어 (경로, 라벨인덱스) 목록을 만든다."""
+def load_quality_scores(path: Path | None = None) -> dict[tuple[str, str], float]:
+    """`scripts/score_quality.py` 가 남긴 (종, 파일명) → fish_prob 표.
+
+    파일이 없으면 빈 dict를 준다 — 필터를 안 쓰는 게 기본 동작이라 에러로 만들지 않는다.
+    """
+    path = path or (config.DATA_DIR / "quality_scores.csv")
+    if not path.exists():
+        return {}
+    out: dict[tuple[str, str], float] = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            out[(row["species"], row["filename"])] = float(row["fish_prob"])
+    return out
+
+
+def scan_split(root: Path, min_fish_prob: float | None = None) -> list[tuple[Path, int]]:
+    """`root/<종명>/*.jpg` 를 훑어 (경로, 라벨인덱스) 목록을 만든다.
+
+    min_fish_prob 를 주면 그 점수 미만인 사진을 뺀다. **학습셋에만 쓸 것.**
+    val/test에 걸면 어려운 문제를 빼고 채점하는 셈이라, 모델은 그대로인데 점수만
+    올라간다. 이전 실험과의 비교도 불가능해진다.
+    """
     if not root.is_dir():
         raise FileNotFoundError(
             f"데이터 폴더가 없다: {root}\n"
             "  → Phase 2(수집·정제·분할)를 먼저 끝내고 data/splits/ 를 채울 것."
         )
+    scores = load_quality_scores() if min_fish_prob is not None else {}
+    if min_fish_prob is not None and not scores:
+        raise FileNotFoundError(
+            "min_fish_prob 를 줬는데 data/quality_scores.csv 가 없다.\n"
+            "  → `python -m scripts.score_quality` 를 먼저 돌릴 것."
+        )
+
     samples: list[tuple[Path, int]] = []
+    dropped = 0
     for name in CLASSES:  # config 순서 고정
         class_dir = root / name
         if not class_dir.is_dir():
             continue
         idx = CLASS_TO_IDX[name]
         for p in sorted(class_dir.iterdir()):
-            if p.suffix.lower() in VALID_IMAGE_EXTS and p.is_file():
-                samples.append((p, idx))
+            if p.suffix.lower() not in VALID_IMAGE_EXTS or not p.is_file():
+                continue
+            # 점수가 없는 파일은 남긴다 — 채점 이후 추가된 사진을 조용히 버리지 않기 위해
+            if min_fish_prob is not None and scores.get((name, p.name), 1.0) < min_fish_prob:
+                dropped += 1
+                continue
+            samples.append((p, idx))
+
+    if dropped:
+        print(f"[filter] {root.name}: fish_prob<{min_fish_prob} 인 {dropped:,}장 제외 "
+              f"→ {len(samples):,}장 사용")
     return samples
 
 
@@ -126,9 +164,10 @@ class FishDataset(Dataset):
         max_retry: 손상 파일을 만났을 때 다른 샘플로 대체 시도 횟수.
     """
 
-    def __init__(self, root: Path, transform: A.Compose | None = None, max_retry: int = 5):
+    def __init__(self, root: Path, transform: A.Compose | None = None, max_retry: int = 5,
+                 min_fish_prob: float | None = None):
         self.root = Path(root)
-        self.samples = scan_split(self.root)
+        self.samples = scan_split(self.root, min_fish_prob)
         if not self.samples:
             raise RuntimeError(f"이미지가 하나도 없다: {self.root}")
         self.transform = transform
@@ -200,7 +239,9 @@ def compute_class_weights(targets: list[int], num_classes: int = len(CLASSES)) -
 # ---------------------------------------------------------------------------
 def build_dataloader(split: str, cfg: TrainConfig, shuffle: bool | None = None) -> DataLoader:
     root = config.SPLIT_DIRS[split]
-    ds = FishDataset(root, transform=build_transforms(split, cfg))
+    # 품질 필터는 학습셋에만 건다 (val/test에 걸면 시험이 쉬워질 뿐이다)
+    ds = FishDataset(root, transform=build_transforms(split, cfg),
+                     min_fish_prob=cfg.min_fish_prob if split == "train" else None)
     is_train = split == "train"
 
     sampler = None
