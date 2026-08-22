@@ -29,7 +29,7 @@
   ],
   "other_class": "기타",
   "other_index": 24,
-  "confidence_threshold": 0.45,
+  "confidence_threshold": 0.25,
   "top_k": 3,
   "species": {
     "감성돔": {
@@ -157,5 +157,31 @@
       "habitat": "other",
       "difficulty": "hard"
     }
+  },
+  "preprocess": {
+    "img_size": 384,
+    "resize_shorter_to": 437,
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "interpolation": "bilinear",
+    "note": "짧은 변을 resize_shorter_to 로 맞춘 뒤 중앙 img_size 크롭 → /255 → (x-mean)/std"
+  },
+  "model": {
+    "backbone": "efficientnet_b0",
+    "version": "b0-384-20260818",
+    "onnx": "model.onnx",
+    "input_name": "input",
+    "output_name": "logits",
+    "opset": 18,
+    "applies_softmax": false,
+    "source_checkpoint": "final_384_기타보강.pt"
   }
 }
