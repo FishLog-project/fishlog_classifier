@@ -1,0 +1,19 @@
+# 빌드 컨텍스트에서 데이터셋(수 GB)을 빼지 않으면 `docker build` 가 전송 단계에서만 몇 분을 쓴다.
+data/
+models/
+reports/
+.git/
+.github/
+docs/
+src/
+scripts/
+.venv/
+venv/
+**/__pycache__/
+*.pyc
+.env
+*.zip
+Dockerfile
+.dockerignore
+README.md
+CLAUDE.md

@@ -15,6 +15,7 @@ timm 전이학습 → ONNX → FastAPI 서빙. 25클래스 = 어종 24 + `기타
 - `training.md` — 학습·튜닝
 - `evaluation.md` — 평가·합격 기준
 - `serving.md` — ONNX·서버·Docker
+- `deploy.md` — EC2 배포 런북
 - `integration.md` — 앱 연동
 - `conventions.md` — 코드 규약
 - `fish-model-plan.md` — 원본 계획서(아카이브, 현재 기준 아님)

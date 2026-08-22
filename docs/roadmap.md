@@ -2,15 +2,18 @@
 
 > 이 파일이 **진행 상황의 단일 기준**이다. 작업을 끝낼 때마다 체크박스와 "현재 위치"를 갱신한다.
 
-## 현재 위치 (2026-08-18 기준)
+## 현재 위치 (2026-08-20 기준)
 
-**Phase 3·4 완료 → Phase 5(ONNX) 착수.**
+**Phase 6 완료 — 컨테이너까지 실모델로 검증 끝. 남은 것은 EC2 배포뿐.**
 최종 모델 **test Top-3 90.66% / Top-1 80.97%** — 합격 기준 통과.
 
-- 있는 것: `src/{config,dataset,train,evaluate}.py`,
-  `scripts/*` 11종(수집 4 + 정제 3 + 검수 보조 2 + 패키징 1 + 품질채점 1),
-  **데이터 7,456장**, `server/labels.json`, 학습된 모델
-- **없는 것: `src/export_onnx.py`, `server/main.py`·`inference.py`, `Dockerfile`**
+- 있는 것: `src/{config,dataset,train,evaluate,export_onnx}.py`,
+  `server/{inference,main}.py`, `Dockerfile`,
+  `scripts/*` 14종(수집 4 + 정제 3 + 검수 보조 2 + 패키징 1 + 품질채점 1 + **검증 2 + 튜닝 1**),
+  **데이터 7,456장**, `server/labels.json`(전처리 파라미터 포함)
+- `server/model.onnx` (15.8MB) 확보 — 로컬에서 `.pt` → ONNX 재변환·검증 완료
+  (랜덤 2.98e-06 / 실이미지 5.72e-06, Top-1 8/8). **git 제외 파일이라 클론 시 다시 만들어야 한다**
+- Docker 이미지 `fishilog-ai:b0-384-20260818` 빌드·구동 확인 (748MB / 압축 195MB / 메모리 132MB)
 - 모델: `efficientnet_b0` / **384px** / 30 epoch / mixup·품질필터 없음
   → Drive `MyDrive/fishlog/models/final_384_기타보강.pt` (16.4MB)
 - 확정: 25클래스(어종 24 + `기타`) / 학습은 Colab T4 ([decisions.md](decisions.md) A-10~12)
@@ -24,18 +27,20 @@
 | 소스 | iNaturalist 약 5,200 + 검색(DDG·Bing) 약 2,300 |
 | `기타` | 706장 (24종밖 어종 380 + 비물고기 330), **출처별 층화 분할** |
 
-### ▶ 다음에 할 일 (Phase 5 → 6)
+### ▶ 다음에 할 일 (Phase 7 — EC2 배포 + 앱 연동)
 
-모델은 합격선을 넘었다. **지금 가장 큰 미완성은 서빙 쪽이다** — 모델이 좋아도
-앱에서 못 쓰면 의미가 없다. 남은 성능 개선은 아래 "알려진 한계" 참조(우선순위 낮음).
+모델 서버는 로컬에서 할 수 있는 검증을 다 마쳤다. 남은 것은 **환경에 올리는 일**이다.
 
-1. `src/export_onnx.py` 작성 → `.pt` vs `.onnx` 수치 일치 검증 (max abs diff < 1e-4)
-2. `server/inference.py` · `server/main.py` — **전처리를 학습과 정확히 일치시킬 것**
-   (384px, `SmallestMaxSize(438)` → `CenterCrop(384)`, ImageNet 정규화)
-3. `uncertain` 임계값 튜닝 — `reports/threshold_curve.png` 기준, val에서
-4. `Dockerfile` → 배포
+1. **EC2 인스턴스 준비** — t3.small 권장(2 vCPU / 2GB). 메모리는 132MB밖에 안 쓰므로
+   t3.micro(1GB)도 되지만, 추론이 CPU를 통째로 쓰는 작업이라 vCPU가 병목이다
+2. **모델 서버를 외부에 열지 않는다** — 보안그룹에서 앱 백엔드의 SG/사설IP만 8000포트 허용.
+   이 서버에는 인증이 없다(설계상 그렇다: integration.md의 상태 없는 내부 서비스)
+3. 이미지 전달: ECR 푸시(권장) 또는 `docker save | gzip` → scp (195MB)
+4. `docker run -d --restart unless-stopped -p 8000:8000` + ALB/헬스체크는 `/health`
+5. 앱 백엔드 연동 — 타임아웃 5초, 4xx 재시도 금지 ([integration.md](integration.md))
+6. 실사용 폰 사진으로 최종 확인 (아직 못 한 유일한 검증 항목)
 
-상세 → [serving.md](serving.md) / [evaluation.md](evaluation.md)
+상세 → [serving.md](serving.md) / [integration.md](integration.md)
 
 ---
 
@@ -97,19 +102,30 @@ epoch 10 이후 train loss만 계속 떨어지고 val loss는 1.42에서 평평 
 - [x] `기타` 249 → 706장 보강 후 재학습 → recall 43.2% → 86.8%(val)
 - 상세 → [evaluation.md](evaluation.md)
 
-### Phase 5 — ONNX Export 🔶 (진행 중)
-- [ ] `src/export_onnx.py` 작성 (미작성)
-- [ ] `.pt` vs `.onnx` 출력 수치 일치 검증 (max abs diff < 1e-4)
+### Phase 5 — ONNX Export ✅ (완료, 2026-08-18)
+- [x] `src/export_onnx.py` 작성
+- [x] `.pt` vs `.onnx` 수치 일치 검증 — 랜덤 1.55e-06 / 실이미지 8.88e-06, Top-1 8/8
+- [x] 단일 파일 15.8MB (external_data=False), opset 18
+- [x] 전처리 파라미터를 `server/labels.json` 에 기록 (img_size 384 / resize 437)
 - 상세 → [serving.md](serving.md)
 
-### Phase 6 — FastAPI + Docker ⬜ (2일)
-- [ ] `server/inference.py`, `server/main.py`
-- [ ] `uncertain` 임계값 튜닝
-- [ ] `Dockerfile` 빌드·실행
-- [ ] 배포 (호스팅 미정 → decisions.md B-2)
+### Phase 6 — FastAPI + Docker ✅ (완료, 2026-08-20)
+- [x] `server/inference.py` — ONNX 세션 1회 로드 + 로드 시점 그래프 대조(해상도·클래스 수)
+- [x] `server/main.py` — `/predict` `/health` `/labels`, 입력 오류는 전부 4xx
+- [x] **전처리 학습 일치 검증** — `scripts/check_preprocess.py`, val 300장 diff **0.00e+00**
+- [x] 서버 계약 검사 — `scripts/check_server.py` 27종 전부 통과(더미 모델 기준)
+- [x] `Dockerfile` + `.dockerignore` 작성
+- [x] `uncertain` 임계값 튜닝 — val 1,117장 서빙 경로 실측, **0.45 → 0.25**
+      (0.45면 어종 사진의 22.3%가 거부된다 — 기준 10%의 두 배)
+- [x] `Dockerfile` 빌드·실행 — 748MB(압축 195MB) / 메모리 132MB / 지연 중앙값 80ms
+- [x] 컨테이너 응답 = 로컬 추론 대조 (실사진 25장, confidence 최대차 0.0000)
+- [ ] EC2 배포 (→ Phase 7)
 - 상세 → [serving.md](serving.md)
 
-### Phase 7 — 앱 연동 ⬜
+### Phase 7 — EC2 배포 + 앱 연동 ⬜
+- [ ] EC2 인스턴스 + 보안그룹(앱 백엔드에서만 접근) — 절차: [deploy.md](deploy.md)
+- [ ] 이미지 전달(ECR 또는 scp) → `docker run --restart unless-stopped`
+- [ ] 실사용 폰 사진 20장 확인 (로컬에서 못 한 유일한 검증)
 - [ ] 백엔드 ↔ 모델 서버 계약 확정, 엣지케이스 테스트
 - [ ] 사용자 확정 결과 로깅 → 재학습 데이터 축적
 - 상세 → [integration.md](integration.md)
