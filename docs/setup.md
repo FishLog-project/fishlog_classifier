@@ -107,6 +107,13 @@ with zipfile.ZipFile('/content/drive/MyDrive/fishlog/splits.zip') as z:
 | 배치 1개 로드 테스트 | `python -m src.dataset --batch` |
 | **평가·오류 진단** | `python -m src.evaluate` → `reports/` 5종 |
 | **Colab용 zip 패키징** | `python -m scripts.package_data` → `data/splits.zip` |
+| **ONNX 변환·검증** | `python -m src.export_onnx` → `server/model.onnx` |
+| **전처리 학습 일치 검사** | `python -m scripts.check_preprocess` |
+| **서버 계약 검사(27종)** | `python -m scripts.check_server` (모델 없으면 더미로 진행) |
+| `uncertain` 임계값 튜닝 | `python -m scripts.tune_threshold --write` |
+| 추론 단발 테스트 | `python -m server.inference <이미지>` |
+| 서버 실행 | `uvicorn server.main:app --reload --port 8000` |
+| Docker 빌드·실행 | `docker build -t fishilog-ai . && docker run --rm -p 8000:8000 fishilog-ai` |
 | 파이프라인 스모크 테스트 | `python -m src.train --smoke` |
 | 기본 학습 | `python -m src.train` |
 | 무거운 백본 | `python -m src.train --backbone convnext_tiny --batch-size 16` |
@@ -123,6 +130,9 @@ with zipfile.ZipFile('/content/drive/MyDrive/fishlog/splits.zip') as z:
 | albumentations 인자 에러 | 2.x API 기준으로 작성됨. `pip install -U "albumentations>=2.0"` |
 | 한글이 콘솔에서 깨짐 | `src.config._force_utf8_console()` 이 자동 처리한다. 그래도 깨지면 `$env:PYTHONUTF8="1"` |
 | `UnicodeEncodeError: 'cp949'` | 위와 동일. `src.config` 를 import하지 않는 새 스크립트를 만들었을 때만 발생 |
+| `/health` 가 계속 503 | `server/model.onnx` 가 없다. git 제외 파일이라 클론만으로는 생기지 않는다 → Drive에서 받아 `server/` 에 둘 것 |
+| 서버 시작 시 "ONNX 입력 해상도와 img_size가 다르다" | export에 쓴 체크포인트와 `labels.json` 이 다른 학습 결과다. `python -m src.export_onnx` 를 다시 돌려 둘을 맞출 것 |
+| 컨테이너에서 `ImportError: libgthread-2.0.so.0` | `opencv-python-headless` 도 libglib을 링크한다. `Dockerfile` 의 `libglib2.0-0` apt 설치 줄이 지워졌는지 확인 |
 | `ModuleNotFoundError: src` | `python scripts/x.py` 로 실행함. `python -m scripts.x` 로 실행할 것 |
 | crawl_inat이 특정 종만 0장 | 학명이 iNat에서 개정됨. `--dry-run` 으로 확인 후 `config.SPECIES` 수정 |
 | crawl_search가 0장 | Bing HTML 구조 변경. `pip install -U icrawler` 후 `--verbose` 로 확인 |
