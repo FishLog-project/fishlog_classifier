@@ -1,8 +1,17 @@
 # 배포용 슬림 의존성 — Docker 이미지에는 torch/timm 을 넣지 않는다.
-# 추론은 ONNX Runtime 으로만 수행하므로 이미지 크기가 ~2GB → ~300MB 로 줄어든다.
+# 추론은 ONNX Runtime 으로만 수행하므로 이미지가 ~2GB → 748MB(압축 전송 195MB)로 줄어든다.
 fastapi>=0.115
-uvicorn[standard]>=0.30
+# [standard] 대신 필요한 것만 집는다 — watchfiles(--reload용)·websockets·PyYAML은
+# 이 서버가 쓰지 않는데 이미지에 30MB쯤 얹힌다. 로컬에서 --reload 를 쓰려면
+# `pip install watchfiles` 를 따로 할 것.
+uvicorn>=0.30
+uvloop>=0.19; sys_platform != 'win32'
+httptools>=0.6
 python-multipart>=0.0.9
 onnxruntime>=1.19
 pillow>=10.3
+# 전처리를 학습(albumentations=cv2)과 **비트 단위로** 맞추기 위해 필요하다.
+# PIL 리사이즈로 대체하면 축소 시 안티에일리어싱 유무가 달라져 결과가 어긋난다
+# (`python -m scripts.check_preprocess` 로 검증). headless = GUI 의존성 없는 슬림 빌드.
+opencv-python-headless>=4.10
 numpy>=1.26
