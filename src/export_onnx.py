@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -190,7 +191,7 @@ def verify_real_images(model: torch.nn.Module, onnx_path: Path, cfg, n: int = 8)
     print(f"       예측 예시: {[CLASSES[i] for i in got.argmax(1)[:5]]}")
 
 
-def stamp_preprocessing(cfg, ckpt_path: Path) -> None:
+def stamp_preprocessing(cfg, ckpt_path: Path, version: str | None = None) -> None:
     """전처리 파라미터를 labels.json 에 박는다. 서버는 이걸 읽어 쓴다(하드코딩 금지).
 
     학습과 서빙의 전처리가 조금이라도 다르면 정확도가 조용히 몇 %씩 떨어진다.
@@ -205,8 +206,14 @@ def stamp_preprocessing(cfg, ckpt_path: Path) -> None:
         "interpolation": "bilinear",
         "note": "짧은 변을 resize_shorter_to 로 맞춘 뒤 중앙 img_size 크롭 → /255 → (x-mean)/std",
     }
+    # 서버가 /health 로 노출하고 앱이 버전 불일치를 감지하는 문자열(decisions.md C-6).
+    # 기본값은 체크포인트 파일의 수정 시각인데, **파일을 다시 내려받으면 그 날짜로 밀린다**
+    # (Drive/Colab 왕복이 잦은 이 프로젝트에선 실제로 어긋났다) → --version 으로 고정할 것.
+    stamp = datetime.fromtimestamp(ckpt_path.stat().st_mtime).strftime("%Y%m%d")
+    short = cfg.backbone.replace("efficientnet_", "").replace("_", "")
     labels["model"] = {
         "backbone": cfg.backbone,
+        "version": version or f"{short}-{cfg.img_size}-{stamp}",
         "onnx": config.ONNX_PATH.name,
         "input_name": INPUT_NAME,
         "output_name": OUTPUT_NAME,
@@ -227,6 +234,8 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=config.ONNX_PATH)
     ap.add_argument("--verify-only", action="store_true", help="변환 없이 기존 onnx만 검증")
     ap.add_argument("--skip-real", action="store_true", help="실이미지 검증 생략")
+    ap.add_argument("--version", default=None,
+                    help="모델 버전 문자열 고정 (기본: 백본-해상도-체크포인트수정일)")
     args = ap.parse_args()
 
     check_deps()
@@ -247,7 +256,7 @@ def main() -> None:
         verify_real_images(model, args.out, cfg)
 
     if not args.verify_only:
-        stamp_preprocessing(cfg, args.ckpt)
+        stamp_preprocessing(cfg, args.ckpt, args.version)
 
     print(f"\n[done] {args.out}")
     print("[next] server/inference.py 작성 → labels.json 의 preprocess 값을 읽어 쓸 것")
