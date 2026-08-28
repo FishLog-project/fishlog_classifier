@@ -34,6 +34,9 @@ onnxscript>=0.7
 
 # --- Phase 2 데이터 수집 ---
 requests>=2.32
+# fastapi TestClient 가 내부적으로 요구한다 (scripts/check_server.py).
+# 지금까지는 다른 패키지에 딸려 들어와 우연히 동작했다 → 명시적으로 선언한다.
+httpx>=0.27
 icrawler                   # Bing 이미지 크롤링 (scripts/crawl_search.py)
 ddgs                       # DuckDuckGo 이미지 검색 (scripts/crawl_ddg.py) — 한국 낚시 사진 주 소스>=0.6.9
 imagehash>=4.3

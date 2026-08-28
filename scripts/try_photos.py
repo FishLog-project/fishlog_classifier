@@ -24,7 +24,7 @@ import argparse
 import time
 from pathlib import Path
 
-import httpx
+import requests
 
 from src import config
 
@@ -61,9 +61,11 @@ def main() -> None:
     if not files:
         raise SystemExit("[FAIL] 이미지를 못 찾았다 (지원: " + " ".join(EXTS) + ")")
 
-    with httpx.Client(base_url=args.url, timeout=30) as c:
+    base = args.url.rstrip("/")
+    # 커넥션을 재사용한다 — 매 요청 새로 열면 처리량이 1/4로 떨어진다(deploy.md 2절)
+    with requests.Session() as c:
         try:
-            health = c.get("/health").json()
+            health = c.get(f"{base}/health", timeout=10).json()
         except Exception as exc:  # noqa: BLE001
             raise SystemExit(
                 f"[FAIL] {args.url} 에 연결할 수 없다: {exc}\n"
@@ -79,7 +81,8 @@ def main() -> None:
         for path in files:
             t0 = time.perf_counter()
             try:
-                r = c.post("/predict", files={"file": (path.name, path.read_bytes())})
+                r = c.post(f"{base}/predict",
+                           files={"file": (path.name, path.read_bytes())}, timeout=30)
             except Exception as exc:  # noqa: BLE001
                 print(f"  [ERR ] {path.name}: {exc}")
                 continue
