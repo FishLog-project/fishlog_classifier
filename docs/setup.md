@@ -112,6 +112,8 @@ with zipfile.ZipFile('/content/drive/MyDrive/fishlog/splits.zip') as z:
 | **서버 계약 검사(27종)** | `python -m scripts.check_server` (모델 없으면 더미로 진행) |
 | `uncertain` 임계값 튜닝 | `python -m scripts.tune_threshold --write` |
 | 추론 단발 테스트 | `python -m server.inference <이미지>` |
+| **실사용 사진 테스트** | `python -m scripts.try_photos <폴더> --html reports/photo_test.html` |
+| EC2 서버에 붙기(터널) | `ssh -i <키>.pem -N -L 8000:localhost:8000 ubuntu@<공인IP>` |
 | 서버 실행 | `uvicorn server.main:app --reload --port 8000` |
 | Docker 빌드·실행 | `docker build -t fishilog-ai . && docker run --rm -p 8000:8000 fishilog-ai` |
 | 파이프라인 스모크 테스트 | `python -m src.train --smoke` |
