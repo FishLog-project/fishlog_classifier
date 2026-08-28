@@ -1,5 +1,7 @@
 # 앱 백엔드 연동
 
+> 백엔드 레포의 Claude Code에 그대로 붙여넣을 프롬프트 → [backend-handoff.md](backend-handoff.md)
+
 ## 역할 분담
 
 ```
