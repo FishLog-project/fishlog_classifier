@@ -2,9 +2,10 @@
 
 > 이 파일이 **진행 상황의 단일 기준**이다. 작업을 끝낼 때마다 체크박스와 "현재 위치"를 갱신한다.
 
-## 현재 위치 (2026-08-20 기준)
+## 현재 위치 (2026-08-28 기준)
 
-**Phase 6 완료 — 컨테이너까지 실모델로 검증 끝. 남은 것은 EC2 배포뿐.**
+**Phase 6 완료 + EC2 배포 완료. 모델 서버가 실제로 떠 있다.**
+남은 것은 백엔드 연동과 실사용 사진 검증뿐.
 최종 모델 **test Top-3 90.66% / Top-1 80.97%** — 합격 기준 통과.
 
 - 있는 것: `src/{config,dataset,train,evaluate,export_onnx}.py`,
@@ -27,7 +28,19 @@
 | 소스 | iNaturalist 약 5,200 + 검색(DDG·Bing) 약 2,300 |
 | `기타` | 706장 (24종밖 어종 380 + 비물고기 330), **출처별 층화 분할** |
 
-### ▶ 다음에 할 일 (Phase 7 — EC2 배포 + 앱 연동)
+### 배포 상태 (2026-08-28)
+
+| 항목 | 값 |
+|---|---|
+| 모델 EC2 | Ubuntu 26.04 / 2 vCPU / 1.9GB, 사설 IP `172.31.14.180` |
+| 컨테이너 | `fishilog-ai:b0-384-20260818`, 워커 2, 메모리 287MB, 자동 재시작 |
+| 검증 | `/health` 200 · 실사진 5장 **EC2 = 로컬 완전 일치** · 외부 8000 차단 확인 |
+| 백엔드 설정값 | `http://172.31.14.180:8000` |
+
+이미지는 로컬에서 옮기지 않고 **EC2에서 직접 빌드**했다(17MB만 업로드).
+절차·함정 → [deploy.md](deploy.md)
+
+### ▶ 다음에 할 일 (Phase 7 — 앱 연동)
 
 모델 서버는 로컬에서 할 수 있는 검증을 다 마쳤다. 남은 것은 **환경에 올리는 일**이다.
 
@@ -109,7 +122,7 @@ epoch 10 이후 train loss만 계속 떨어지고 val loss는 1.42에서 평평 
 - [x] 전처리 파라미터를 `server/labels.json` 에 기록 (img_size 384 / resize 437)
 - 상세 → [serving.md](serving.md)
 
-### Phase 6 — FastAPI + Docker ✅ (완료, 2026-08-20)
+### Phase 6 — FastAPI + Docker ✅ (완료, 2026-08-22)
 - [x] `server/inference.py` — ONNX 세션 1회 로드 + 로드 시점 그래프 대조(해상도·클래스 수)
 - [x] `server/main.py` — `/predict` `/health` `/labels`, 입력 오류는 전부 4xx
 - [x] **전처리 학습 일치 검증** — `scripts/check_preprocess.py`, val 300장 diff **0.00e+00**
@@ -123,9 +136,10 @@ epoch 10 이후 train loss만 계속 떨어지고 val loss는 1.42에서 평평 
 - 상세 → [serving.md](serving.md)
 
 ### Phase 7 — EC2 배포 + 앱 연동 ⬜
-- [ ] EC2 인스턴스 + 보안그룹(앱 백엔드에서만 접근) — 절차: [deploy.md](deploy.md)
-- [ ] 이미지 전달(ECR 또는 scp) → `docker run --restart unless-stopped`
-- [ ] 실사용 폰 사진 20장 확인 (로컬에서 못 한 유일한 검증)
+- [x] EC2 인스턴스 + 보안그룹(앱 백엔드에서만 접근) — 2026-08-28
+- [x] 이미지 배포 → `docker run --restart unless-stopped` (EC2에서 직접 빌드)
+- [ ] **백엔드에서 `/predict` 호출 확인** — 모델 서버 쪽은 준비 끝, 백엔드에서만 확인 가능
+- [ ] 실사용 폰 사진 20장 확인 (유일하게 결과를 모르는 항목)
 - [ ] 백엔드 ↔ 모델 서버 계약 확정, 엣지케이스 테스트
 - [ ] 사용자 확정 결과 로깅 → 재학습 데이터 축적
 - 상세 → [integration.md](integration.md)

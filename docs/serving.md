@@ -1,6 +1,6 @@
 # Phase 5·6 — ONNX Export · FastAPI 서버 · Docker
 
-`src/export_onnx.py` (2026-08-18) / `server/inference.py`·`server/main.py`·`Dockerfile` (2026-08-20)
+`src/export_onnx.py` (2026-08-18) / `server/inference.py`·`server/main.py`·`Dockerfile` (2026-08-22)
 
 ```bash
 python -m src.export_onnx                    # models/best.pt → server/model.onnx
@@ -40,7 +40,7 @@ python -m src.export_onnx --ckpt models/best.pt --out server/model.onnx
 
 ## Phase 6 — 추론 서버
 
-### 전처리 — 학습과 **비트 단위로** 같다 (2026-08-20 실측)
+### 전처리 — 학습과 **비트 단위로** 같다 (2026-08-22 실측)
 
 ```
 EXIF 회전 반영 → RGB → 짧은 변을 437px 로 리사이즈(cv2 INTER_LINEAR)
@@ -162,7 +162,7 @@ python -m scripts.tune_threshold --write      # 고른 값을 labels.json 에 �
 기준(evaluation.md): 어종 사진 거부율 10% 이하를 유지하면서 통과분 Top-3 최대.
 `기타` 사진이 거부되는 것은 비용이 아니라 이득이므로 거부율 계산에서 분리한다.
 
-#### 결과 (2026-08-20, val 1,117장 / 실모델 / TTA off)
+#### 결과 (2026-08-22, val 1,117장 / 실모델 / TTA off)
 
 | 임계값 | 어종 거부율 | 통과 Top-3 | 통과 Top-1 | `기타` 검출 |
 |---|---|---|---|---|
@@ -211,7 +211,7 @@ curl -F "file=@sample.jpg" localhost:8000/predict
 - `HEALTHCHECK` 는 curl 대신 파이썬(slim에 curl이 없다)
 - `.dockerignore` 로 `data/`(수 GB)를 제외 — 없으면 빌드 컨텍스트 전송에만 몇 분이 든다
 
-#### 실측 (2026-08-20, 이 랩탑 / Docker Desktop / 384px b0 / TTA off)
+#### 실측 (2026-08-22, 이 랩탑 / Docker Desktop / 384px b0 / TTA off)
 
 | 항목 | 값 |
 |---|---|
@@ -251,7 +251,7 @@ python -m scripts.check_server         # 계약 검사 27종 (모델 없으면 �
 - [x] 동시 요청 10개 — `check_server`
 - [x] `/health` 가 모델 미로드 시 503 — `check_server`
 - [x] 전처리 학습 일치 — `check_preprocess` (val 300장 diff 0)
-- [x] **실모델로 위 두 검사 재실행** — 2026-08-20, 27/27 · 전처리 diff 0
+- [x] **실모델로 위 두 검사 재실행** — 2026-08-22, 27/27 · 전처리 diff 0
 - [x] `docker build` / `docker run` 실행 확인 — `/health` 200, 실사진 25장 응답 정상
 - [x] 컨테이너 응답 = 로컬 추론 (confidence 최대차 0.0000)
 - [x] `scripts.tune_threshold` 로 임계값 확정 — 0.45 → **0.25**
